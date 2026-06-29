@@ -118,6 +118,9 @@ create policy "Users can update own profile." on public.profiles for update usin
 alter table public.matches enable row level security;
 create policy "Matches are viewable by everyone" on public.matches for select using (true);
 create policy "Players can update their own matches" on public.matches for update using (auth.uid() = player1_id or auth.uid() = player2_id);
+create policy "Admins can manage matches" on public.matches using (
+  (select role from public.profiles where id = auth.uid()) = 'admin'
+);
 
 -- Messages
 alter table public.messages enable row level security;
@@ -136,6 +139,30 @@ create policy "Users can insert messages in their rooms" on public.messages for 
     where cr.id = messages.room_id
     and (m.player1_id = auth.uid() or m.player2_id = auth.uid())
   )
+);
+create policy "Admins can view all messages" on public.messages for select using (
+  (select role from public.profiles where id = auth.uid()) = 'admin'
+);
+
+-- Competitions (Enable RLS for security)
+alter table public.competitions enable row level security;
+create policy "Competitions are viewable by everyone" on public.competitions for select using (true);
+create policy "Admins can manage competitions" on public.competitions using (
+  (select role from public.profiles where id = auth.uid()) = 'admin'
+);
+
+-- Poules
+alter table public.poules enable row level security;
+create policy "Poules are viewable by everyone" on public.poules for select using (true);
+create policy "Admins can manage poules" on public.poules using (
+  (select role from public.profiles where id = auth.uid()) = 'admin'
+);
+
+-- Poule Players
+alter table public.poule_players enable row level security;
+create policy "Poule standings are viewable by everyone" on public.poule_players for select using (true);
+create policy "Admins can manage poule standings" on public.poule_players using (
+  (select role from public.profiles where id = auth.uid()) = 'admin'
 );
 
 -- Triggers for updated_at
@@ -159,8 +186,14 @@ create trigger on_match_updated
 create or replace function public.handle_new_user()
 returns trigger as $$
 begin
-  insert into public.profiles (id, first_name, last_name, email)
-  values (new.id, new.raw_user_meta_data->>'first_name', new.raw_user_meta_data->>'last_name', new.email);
+  insert into public.profiles (id, first_name, last_name, email, role)
+  values (
+    new.id, 
+    new.raw_user_meta_data->>'first_name', 
+    new.raw_user_meta_data->>'last_name', 
+    new.email,
+    case when lower(new.email) = 'tijs.peetermans@neuritas-ai.com' then 'admin'::user_role else 'player'::user_role end
+  );
   return new;
 end;
 $$ language plpgsql security definer;

@@ -34,6 +34,7 @@ export async function updateSession(request: NextRequest) {
   // Define protected routes here
   const isAuthRoute = request.nextUrl.pathname.startsWith('/login') || request.nextUrl.pathname.startsWith('/register')
   const isProtectedRoute = request.nextUrl.pathname.startsWith('/dashboard') || request.nextUrl.pathname.startsWith('/matches') || request.nextUrl.pathname.startsWith('/admin')
+  const isAdminRoute = request.nextUrl.pathname.startsWith('/admin')
 
   if (isProtectedRoute && !user) {
     const url = request.nextUrl.clone()
@@ -41,10 +42,28 @@ export async function updateSession(request: NextRequest) {
     return NextResponse.redirect(url)
   }
 
-  if (isAuthRoute && user) {
-    const url = request.nextUrl.clone()
-    url.pathname = '/dashboard' // we should check role to redirect admin to /admin/dashboard
-    return NextResponse.redirect(url)
+  if (user) {
+    // Check role for routing logic
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('role')
+      .eq('id', user.id)
+      .single()
+      
+    const isAdmin = profile?.role === 'admin'
+
+    // Redirect admins away from player routes, and players away from admin routes
+    if (isAdminRoute && !isAdmin) {
+      const url = request.nextUrl.clone()
+      url.pathname = '/dashboard'
+      return NextResponse.redirect(url)
+    }
+
+    if (isAuthRoute) {
+      const url = request.nextUrl.clone()
+      url.pathname = isAdmin ? '/admin/dashboard' : '/dashboard'
+      return NextResponse.redirect(url)
+    }
   }
 
   return supabaseResponse
