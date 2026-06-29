@@ -2,6 +2,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Plus, Edit, Trash2, Trophy } from 'lucide-react'
 import { createClient } from '@/utils/supabase/server'
+import AddCompetitionDialog from '@/components/admin/add-competition-dialog'
 
 const typeLabels: Record<string, string> = {
   single_winter: 'Enkel Winter',
@@ -35,10 +36,7 @@ export default async function AdminCompetitionsPage() {
           <h1 className="text-3xl font-bold tracking-tight text-gray-900 dark:text-foreground">Competities</h1>
           <p className="text-gray-500 dark:text-muted-foreground">Beheer alle competities en poules.</p>
         </div>
-        <Button className="flex items-center bg-primary hover:bg-primary/90 text-white font-bold rounded-xl">
-          <Plus className="w-4 h-4 mr-2" />
-          Nieuwe Competitie
-        </Button>
+        <AddCompetitionDialog />
       </div>
 
       <Card className="border-0 shadow-sm overflow-hidden">

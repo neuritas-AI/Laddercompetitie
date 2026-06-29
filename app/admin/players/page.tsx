@@ -1,8 +1,8 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { MoreVertical, Ban, CheckCircle, Shield, Plus } from 'lucide-react'
-import { Input } from '@/components/ui/input'
 import { createClient } from '@/utils/supabase/server'
+import AddPlayerDialog from '@/components/admin/add-player-dialog'
 
 export default async function AdminPlayersPage() {
   const supabase = await createClient()
@@ -19,7 +19,7 @@ export default async function AdminPlayersPage() {
           <h1 className="text-3xl font-bold tracking-tight text-foreground">Spelers & Betalingen</h1>
           <p className="text-muted-foreground">Beheer accounts, profielfoto's en betalingsstatussen.</p>
         </div>
-        <Button className="bg-primary hover:bg-primary/90 text-white font-bold rounded-xl"><Plus className="w-4 h-4 mr-2" /> Speler Toevoegen</Button>
+        <AddPlayerDialog />
       </div>
 
       <Card className="border-0 shadow-sm overflow-hidden">

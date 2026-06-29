@@ -3,6 +3,7 @@ import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { MoreVertical, Users, Plus } from 'lucide-react'
 import { createClient } from '@/utils/supabase/server'
+import AddTeamDialog from '@/components/admin/add-team-dialog'
 
 export default async function AdminTeamsPage() {
   const supabase = await createClient()
@@ -21,6 +22,14 @@ export default async function AdminTeamsPage() {
     `)
     .order('created_at', { ascending: false })
 
+  // Fetch players for the team creation dialog
+  const { data: players } = await supabase
+    .from('profiles')
+    .select('id, first_name, last_name, email')
+    .eq('role', 'player')
+    .eq('is_active', true)
+    .order('first_name')
+
   return (
     <div className="space-y-6 p-6 lg:p-8">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -28,7 +37,7 @@ export default async function AdminTeamsPage() {
           <h1 className="text-3xl font-bold tracking-tight text-foreground">Dubbelteams</h1>
           <p className="text-muted-foreground">Beheer de dubbelteams en hun samenstelling.</p>
         </div>
-        <Button className="bg-primary hover:bg-primary/90 text-white font-bold rounded-xl"><Plus className="w-4 h-4 mr-2" /> Team Aanmaken</Button>
+        <AddTeamDialog players={players ?? []} />
       </div>
 
       <Card className="border-0 shadow-sm overflow-hidden">

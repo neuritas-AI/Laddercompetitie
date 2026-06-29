@@ -43,14 +43,32 @@ export async function updateSession(request: NextRequest) {
   }
 
   if (user) {
-    // Check role for routing logic
+    // Emails that always get admin access (fallback if DB role not yet set)
+    const ADMIN_EMAILS = ['tijs.peetermans@neuritas-ai.com']
+    const emailIsAdmin = ADMIN_EMAILS.includes(user.email?.toLowerCase() ?? '')
+
+    // Check role from DB
     const { data: profile } = await supabase
       .from('profiles')
       .select('role')
       .eq('id', user.id)
       .single()
-      
-    const isAdmin = profile?.role === 'admin'
+
+    const dbIsAdmin = profile?.role === 'admin'
+    const isAdmin = dbIsAdmin || emailIsAdmin
+
+    // If email grants admin but DB doesn't yet have admin role → fix it automatically
+    if (emailIsAdmin && !dbIsAdmin) {
+      await supabase
+        .from('profiles')
+        .upsert({
+          id: user.id,
+          email: user.email,
+          role: 'admin',
+          is_active: true,
+          updated_at: new Date().toISOString(),
+        }, { onConflict: 'id' })
+    }
 
     // Redirect admins away from player routes, and players away from admin routes
     if (isAdminRoute && !isAdmin) {
@@ -59,7 +77,11 @@ export async function updateSession(request: NextRequest) {
       return NextResponse.redirect(url)
     }
 
-    const isPlayerRoute = request.nextUrl.pathname.startsWith('/dashboard') || request.nextUrl.pathname.startsWith('/matches') || request.nextUrl.pathname.startsWith('/ranking') || request.nextUrl.pathname.startsWith('/profile')
+    const isPlayerRoute =
+      request.nextUrl.pathname.startsWith('/dashboard') ||
+      request.nextUrl.pathname.startsWith('/matches') ||
+      request.nextUrl.pathname.startsWith('/ranking') ||
+      request.nextUrl.pathname.startsWith('/profile')
     
     if (isPlayerRoute && isAdmin) {
       const url = request.nextUrl.clone()

@@ -2,6 +2,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Plus, Settings2, GripVertical } from 'lucide-react'
 import { createClient } from '@/utils/supabase/server'
+import AddPouleDialog from '@/components/admin/add-poule-dialog'
 
 export default async function AdminPoulesPage() {
   const supabase = await createClient()
@@ -22,6 +23,13 @@ export default async function AdminPoulesPage() {
     `)
     .order('level', { ascending: true })
 
+  // Fetch competitions for the add poule dialog
+  const { data: competitions } = await supabase
+    .from('competitions')
+    .select('id, name')
+    .eq('is_active', true)
+    .order('name')
+
   return (
     <div className="space-y-6 p-6 lg:p-8">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -29,9 +37,7 @@ export default async function AdminPoulesPage() {
           <h1 className="text-3xl font-bold tracking-tight text-foreground">Poulebeheer</h1>
           <p className="text-muted-foreground">Overzicht van alle poules en hun spelers.</p>
         </div>
-        <Button className="bg-primary hover:bg-primary/90 text-white font-bold rounded-xl">
-          <Plus className="w-4 h-4 mr-2" /> Nieuwe Poule
-        </Button>
+        <AddPouleDialog competitions={competitions ?? []} />
       </div>
 
       {poules && poules.length > 0 ? (

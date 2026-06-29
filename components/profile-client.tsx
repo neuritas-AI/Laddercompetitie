@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useTransition, useRef } from 'react'
+import { useRouter } from 'next/navigation'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -32,6 +33,7 @@ export default function ProfileClient({ profile }: Props) {
   const [isPending, startTransition] = useTransition()
   const [isPwPending, startPwTransition] = useTransition()
   const fileRef = useRef<HTMLInputElement>(null)
+  const router = useRouter()
 
   const displayName = [profile.first_name, profile.last_name].filter(Boolean).join(' ') || profile.email
   const initials = displayName.slice(0, 2).toUpperCase()
@@ -47,6 +49,7 @@ export default function ProfileClient({ profile }: Props) {
       if (result.success && result.avatarUrl) {
         setAvatarUrl(result.avatarUrl)
         setUploadMsg({ type: 'success', text: 'Profielfoto opgeslagen!' })
+        router.refresh()
       } else {
         setUploadMsg({ type: 'error', text: result.error ?? 'Upload mislukt.' })
       }
@@ -63,6 +66,7 @@ export default function ProfileClient({ profile }: Props) {
       const result = await updateProfile(formData)
       if (result.success) {
         setSaveMsg({ type: 'success', text: 'Profiel opgeslagen!' })
+        router.refresh()
       } else {
         setSaveMsg({ type: 'error', text: result.error ?? 'Opslaan mislukt.' })
       }
