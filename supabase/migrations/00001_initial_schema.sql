@@ -12,8 +12,8 @@ create type competition_type as enum ('single_winter', 'single_summer', 'double_
 create table public.profiles (
   id uuid references auth.users on delete cascade not null primary key,
   role user_role default 'player' not null,
-  first_name text not null,
-  last_name text not null,
+  first_name text,
+  last_name text,
   email text not null unique,
   phone text,
   address text,
@@ -186,14 +186,16 @@ create trigger on_match_updated
 create or replace function public.handle_new_user()
 returns trigger as $$
 begin
-  insert into public.profiles (id, first_name, last_name, email, role)
+  insert into public.profiles (id, first_name, last_name, email, role, is_active)
   values (
-    new.id, 
-    new.raw_user_meta_data->>'first_name', 
-    new.raw_user_meta_data->>'last_name', 
+    new.id,
+    coalesce(new.raw_user_meta_data->>'first_name', split_part(new.email, '@', 1)),
+    coalesce(new.raw_user_meta_data->>'last_name', ''),
     new.email,
-    case when lower(new.email) = 'tijs.peetermans@neuritas-ai.com' then 'admin'::user_role else 'player'::user_role end
-  );
+    case when lower(new.email) = 'tijs.peetermans@neuritas-ai.com' then 'admin'::user_role else 'player'::user_role end,
+    case when lower(new.email) = 'tijs.peetermans@neuritas-ai.com' then true else false end
+  )
+  on conflict (email) do nothing;
   return new;
 end;
 $$ language plpgsql security definer;

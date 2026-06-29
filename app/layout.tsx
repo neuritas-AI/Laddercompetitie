@@ -15,6 +15,9 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "Tennis Ladder",
   description: "De moderne Progressive Web App voor tennis laddercompetities.",
+  icons: {
+    icon: '/logo-16.png',
+  },
 };
 
 export default function RootLayout({

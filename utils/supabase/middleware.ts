@@ -59,9 +59,17 @@ export async function updateSession(request: NextRequest) {
       return NextResponse.redirect(url)
     }
 
+    const isPlayerRoute = request.nextUrl.pathname.startsWith('/dashboard') || request.nextUrl.pathname.startsWith('/matches') || request.nextUrl.pathname.startsWith('/ranking') || request.nextUrl.pathname.startsWith('/profile')
+    
+    if (isPlayerRoute && isAdmin) {
+      const url = request.nextUrl.clone()
+      url.pathname = '/admin'
+      return NextResponse.redirect(url)
+    }
+
     if (isAuthRoute) {
       const url = request.nextUrl.clone()
-      url.pathname = isAdmin ? '/admin/dashboard' : '/dashboard'
+      url.pathname = isAdmin ? '/admin' : '/dashboard'
       return NextResponse.redirect(url)
     }
   }
