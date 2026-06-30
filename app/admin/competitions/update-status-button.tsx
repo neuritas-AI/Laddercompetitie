@@ -21,12 +21,14 @@ export default function UpdateCompetitionStatusButton({ competitionId, currentSt
 
   return (
     <DropdownMenu open={open} onOpenChange={setOpen}>
-      <DropdownMenuTrigger asChild>
-        <Button variant="outline" size="sm" className="h-9 font-bold rounded-lg" disabled={isPending}>
-          {isPending ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : 'Status '}
-          <ChevronDown className="w-4 h-4 ml-1" />
-        </Button>
-      </DropdownMenuTrigger>
+      <DropdownMenuTrigger
+        render={
+          <Button variant="outline" size="sm" className="h-9 font-bold rounded-lg" disabled={isPending}>
+            {isPending ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : 'Status '}
+            <ChevronDown className="w-4 h-4 ml-1" />
+          </Button>
+        }
+      />
       <DropdownMenuContent align="end">
         <DropdownMenuItem onClick={() => handleStatusChange('draft')} className="cursor-pointer">
           Concept
