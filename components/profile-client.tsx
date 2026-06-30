@@ -180,7 +180,7 @@ export default function ProfileClient({ profile }: Props) {
                 </div>
                 <div className="sm:col-span-2 mt-2">
                   <label className="flex items-center space-x-3 cursor-pointer">
-                    <input type="checkbox" name="share_phone" defaultChecked={profile.share_phone} className="h-4 w-4 rounded border-gray-300 text-primary" />
+                    <input type="checkbox" name="share_phone" defaultChecked={profile.share_phone ?? false} className="h-4 w-4 rounded border-gray-300 text-primary" />
                     <span className="text-sm font-medium">Mijn telefoonnummer delen met tegenstanders</span>
                   </label>
                 </div>
