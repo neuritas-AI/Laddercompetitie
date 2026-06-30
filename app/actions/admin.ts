@@ -17,11 +17,27 @@ async function ensureAdmin() {
   if (!user) throw new Error('Not logged in')
 
   const { data } = await supabase.from('profiles').select('role').eq('id', user.id).single()
-  if (data?.role !== 'admin') {
+  
+  const ADMIN_EMAILS = ['tijs.peetermans@neuritas-ai.com']
+  const emailIsAdmin = ADMIN_EMAILS.includes(user.email?.toLowerCase() ?? '')
+  const dbIsAdmin = data?.role === 'admin'
+
+  if (!dbIsAdmin && !emailIsAdmin) {
     throw new Error('Unauthorized')
   }
 
-  return { supabase, user }
+  // Create admin client for bypassing RLS
+  const adminSupabase = createSupabaseClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!
+  )
+
+  // Auto-fix the role in the database using the Service Role Key if needed
+  if (emailIsAdmin && !dbIsAdmin) {
+    await adminSupabase.from('profiles').update({ role: 'admin' }).eq('id', user.id)
+  }
+
+  return { supabase: adminSupabase, user }
 }
 
 export async function createCompetition(formData: FormData): Promise<ActionResponse> {
@@ -52,7 +68,9 @@ export async function createCompetition(formData: FormData): Promise<ActionRespo
     revalidatePath('/admin/competitions')
     return { success: true }
   } catch (error: any) {
-    return { success: false, error: error.message }
+    console.error('createCompetition error:', error)
+    const msg = error?.message || (typeof error === 'object' ? JSON.stringify(error) : String(error))
+    return { success: false, error: msg || 'Onbekende fout' }
   }
 }
 
@@ -79,7 +97,9 @@ export async function createPoule(formData: FormData): Promise<ActionResponse> {
     revalidatePath('/admin/poules')
     return { success: true }
   } catch (error: any) {
-    return { success: false, error: error.message }
+    console.error('createPoule error:', error)
+    const msg = error?.message || (typeof error === 'object' ? JSON.stringify(error) : String(error))
+    return { success: false, error: msg || 'Onbekende fout' }
   }
 }
 
@@ -96,45 +116,57 @@ export async function createPlayer(formData: FormData): Promise<ActionResponse> 
       return { success: false, error: 'Alle velden zijn verplicht.' }
     }
 
-    // Use the Service Role Key to create the user without logging the admin out
-    const adminAuthClient = createSupabaseClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.SUPABASE_SERVICE_ROLE_KEY!,
-      {
-        auth: {
-          autoRefreshToken: false,
-          persistSession: false,
-        }
-      }
-    )
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
+    const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY!
 
-    const { data: authData, error: authError } = await adminAuthClient.auth.admin.createUser({
-      email,
-      password,
-      email_confirm: true,
+    // Use direct REST API call instead of SDK to avoid SDK-level 500 errors
+    const createUserRes = await fetch(`${supabaseUrl}/auth/v1/admin/users`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'apikey': serviceRoleKey,
+        'Authorization': `Bearer ${serviceRoleKey}`,
+      },
+      body: JSON.stringify({
+        email,
+        password,
+        email_confirm: true,
+      }),
     })
 
-    if (authError) throw authError
+    const createUserData = await createUserRes.json()
 
-    if (authData.user) {
-      // Create profile record
-      const { error: profileError } = await adminAuthClient.from('profiles').upsert({
-        id: authData.user.id,
-        first_name,
-        last_name,
-        email,
-        role: 'player',
-        is_active: true,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-      })
-      if (profileError) throw profileError
+    if (!createUserRes.ok) {
+      const errMsg = createUserData?.message || createUserData?.msg || JSON.stringify(createUserData)
+      throw new Error(errMsg)
     }
+
+    const newUserId: string = createUserData.id
+
+    if (!newUserId) {
+      throw new Error('Geen gebruiker ID ontvangen van Supabase.')
+    }
+
+    // Create profile record using admin client (bypasses RLS)
+    const adminDbClient = createSupabaseClient(supabaseUrl, serviceRoleKey)
+    const { error: profileError } = await adminDbClient.from('profiles').upsert({
+      id: newUserId,
+      first_name,
+      last_name,
+      email,
+      role: 'player',
+      is_active: true,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    })
+    if (profileError) throw profileError
 
     revalidatePath('/admin/players')
     return { success: true }
   } catch (error: any) {
-    return { success: false, error: error.message }
+    console.error('createPlayer error:', error)
+    const msg = error?.message || (typeof error === 'object' ? JSON.stringify(error) : String(error))
+    return { success: false, error: msg || 'Onbekende fout' }
   }
 }
 
@@ -176,6 +208,8 @@ export async function createTeam(formData: FormData): Promise<ActionResponse> {
     revalidatePath('/admin/teams')
     return { success: true }
   } catch (error: any) {
-    return { success: false, error: error.message }
+    console.error('createTeam error:', error)
+    const msg = error?.message || (typeof error === 'object' ? JSON.stringify(error) : String(error))
+    return { success: false, error: msg || 'Onbekende fout' }
   }
 }
