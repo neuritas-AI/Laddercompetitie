@@ -71,10 +71,6 @@ export default async function AdminTeamsPage() {
                         <p className="text-xs text-muted-foreground font-medium">{p1Name} &amp; {p2Name}</p>
                       </div>
                     </div>
-                    <div className="flex items-center gap-2 ml-auto sm:ml-0">
-                      <Button variant="outline" size="sm" className="font-bold rounded-lg h-9">Wijzigen</Button>
-                      <button className="p-2 text-muted-foreground hover:text-foreground"><MoreVertical className="w-5 h-5" /></button>
-                    </div>
                   </div>
                 )
               })}

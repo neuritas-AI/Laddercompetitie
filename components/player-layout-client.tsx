@@ -5,6 +5,7 @@ import { usePathname } from 'next/navigation'
 import { CalendarDays, User, LogOut, Home, ListOrdered, ChevronDown } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import Logo from '@/components/logo'
+import NotificationsDropdown, { NotificationType } from '@/components/notifications-dropdown'
 
 const navItems = [
   { href: '/dashboard', label: 'Dashboard', icon: Home },
@@ -18,6 +19,7 @@ interface PlayerLayoutClientProps {
   displayName: string
   avatarUrl: string | null
   pouleLabel: string | null
+  notifications?: NotificationType[]
 }
 
 export default function PlayerLayoutClient({
@@ -25,6 +27,7 @@ export default function PlayerLayoutClient({
   displayName,
   avatarUrl,
   pouleLabel,
+  notifications = [],
 }: PlayerLayoutClientProps) {
   const pathname = usePathname()
 

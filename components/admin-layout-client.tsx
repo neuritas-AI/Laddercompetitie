@@ -18,6 +18,7 @@ const adminNavItems = [
   { href: '/admin/teams', label: 'Dubbelteams', icon: GitCommitHorizontal },
   { href: '/admin/matches', label: 'Wedstrijden', icon: CalendarClock },
   { href: '/admin/logs', label: 'Audit Logboek', icon: FileSearch },
+  { href: '/admin/administrators', label: 'Administrators', icon: Shield },
 ]
 
 interface Props {

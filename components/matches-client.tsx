@@ -47,9 +47,9 @@ export default function MatchesClient({ upcoming, past, userId, pouleName }: Pro
   const getOpponent = (match: Match) => {
     const isPlayer1 = match.player1_id === userId
     const opp = isPlayer1 ? match.player2 : match.player1
-    if (!opp) return { name: 'Tegenstander', avatar: null }
+    if (!opp) return { name: 'Tegenstander', avatar: null, phone: null, sharePhone: false }
     const name = `${opp.first_name || ''} ${opp.last_name || ''}`.trim() || 'Tegenstander'
-    return { name, avatar: opp.avatar_url }
+    return { name, avatar: opp.avatar_url, phone: (opp as any).phone, sharePhone: (opp as any).share_phone }
   }
 
   const formatDate = (d: string | null) => {
@@ -93,7 +93,7 @@ export default function MatchesClient({ upcoming, past, userId, pouleName }: Pro
   }
 
   const renderMatchRow = (match: Match) => {
-    const { name: oppName, avatar: oppAvatar } = getOpponent(match)
+    const { name: oppName, avatar: oppAvatar, phone, sharePhone } = getOpponent(match)
     const isPlayer1 = match.player1_id === userId
     const myScore = isPlayer1 ? match.score_player1 : match.score_player2
     const oppScore = isPlayer1 ? match.score_player2 : match.score_player1
@@ -115,7 +115,14 @@ export default function MatchesClient({ upcoming, past, userId, pouleName }: Pro
             </div>
             <div>
               <p className="font-black text-lg text-foreground">{oppName}</p>
-              <p className="text-xs text-muted-foreground font-bold tracking-wider uppercase mt-0.5">{poule}</p>
+              <div className="flex flex-col gap-0.5 mt-0.5">
+                <p className="text-xs text-muted-foreground font-bold tracking-wider uppercase">{poule}</p>
+                {sharePhone ? (
+                  <p className="text-xs text-primary font-medium">{phone || 'Geen nummer'}</p>
+                ) : (
+                  <p className="text-xs text-muted-foreground italic">Nummer niet gedeeld</p>
+                )}
+              </div>
             </div>
           </div>
 

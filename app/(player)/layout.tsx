@@ -40,11 +40,23 @@ export default async function PlayerLayout({ children }: { children: React.React
 
   const pouleLabel = (pouleInfo?.poules as any)?.name ?? null
 
+  let notifications: any[] = []
+  if (user) {
+    const { data: notifs } = await supabase
+      .from('notifications')
+      .select('id, title, message, type, is_read, link_url, created_at')
+      .eq('user_id', user.id)
+      .order('created_at', { ascending: false })
+      .limit(20)
+    notifications = notifs || []
+  }
+
   return (
     <PlayerLayoutClient
       displayName={displayName}
       avatarUrl={profile?.avatar_url ?? null}
       pouleLabel={pouleLabel}
+      notifications={notifications}
     >
       {children}
     </PlayerLayoutClient>

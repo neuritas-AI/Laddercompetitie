@@ -10,6 +10,7 @@ export default async function AdminPlayersPage() {
   const { data: players } = await supabase
     .from('profiles')
     .select('id, first_name, last_name, email, role, is_active, avatar_url, created_at')
+    .eq('is_player', true)
     .order('created_at', { ascending: false })
 
   return (

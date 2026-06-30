@@ -8,7 +8,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Camera, Lock, Bell, Loader2, CheckCircle2, AlertCircle } from 'lucide-react'
-import { updateProfile, updatePassword, uploadAvatar } from '@/app/actions/profile'
+import { updateProfile, updatePassword, uploadAvatar, updateNotificationPreferences } from '@/app/actions/profile'
 
 interface Profile {
   first_name: string | null
@@ -18,6 +18,8 @@ interface Profile {
   address: string | null
   birth_date: string | null
   avatar_url: string | null
+  share_phone?: boolean | null
+  preferences?: { notifications?: string[] } | null
 }
 
 interface Props {
@@ -84,6 +86,28 @@ export default function ProfileClient({ profile }: Props) {
       }
     })
   }
+
+  const handleNotificationSave = async (formData: FormData) => {
+    setSaveMsg(null)
+    startTransition(async () => {
+      const result = await updateNotificationPreferences(formData)
+      if (result.success) {
+        setSaveMsg({ type: 'success', text: 'Meldingen opgeslagen!' })
+        router.refresh()
+      } else {
+        setSaveMsg({ type: 'error', text: result.error ?? 'Opslaan mislukt.' })
+      }
+    })
+  }
+
+  const allowedNotifications = [
+    { value: 'match_tomorrow', label: 'Herinnering 1 dag voor wedstrijd' },
+    { value: 'match_today', label: 'Herinnering dag van wedstrijd' },
+    { value: 'score_entered', label: 'Tegenstander heeft score ingegeven' },
+    { value: 'match_scheduled', label: 'Nieuwe wedstrijd gepland' }
+  ]
+
+  const userNotifications = profile.preferences?.notifications || []
 
   return (
     <div className="space-y-6">
@@ -154,6 +178,12 @@ export default function ProfileClient({ profile }: Props) {
                   <Label htmlFor="address">Adres</Label>
                   <Input id="address" name="address" defaultValue={profile.address ?? ''} className="h-10" />
                 </div>
+                <div className="sm:col-span-2 mt-2">
+                  <label className="flex items-center space-x-3 cursor-pointer">
+                    <input type="checkbox" name="share_phone" defaultChecked={profile.share_phone} className="h-4 w-4 rounded border-gray-300 text-primary" />
+                    <span className="text-sm font-medium">Mijn telefoonnummer delen met tegenstanders</span>
+                  </label>
+                </div>
               </div>
               {saveMsg && (
                 <p className={`text-sm font-semibold flex items-center gap-1.5 ${saveMsg.type === 'success' ? 'text-green-600' : 'text-red-600'}`}>
@@ -213,20 +243,28 @@ export default function ProfileClient({ profile }: Props) {
               Meldingen
             </CardTitle>
           </CardHeader>
-          <CardContent className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            {[
-              'Nieuwe wedstrijd gepland',
-              'Score ingegeven door tegenstander',
-              'Herinnering 2 dagen voor wedstrijd',
-              'Herinnering dag van wedstrijd',
-              'Promotie of degradatie',
-              'Competitie gestart',
-            ].map((item) => (
-              <label key={item} className="flex items-center space-x-3 cursor-pointer">
-                <input type="checkbox" defaultChecked className="h-4 w-4 rounded border-gray-300 text-primary" />
-                <span className="text-sm font-medium">{item}</span>
-              </label>
-            ))}
+          <CardContent>
+            <form action={handleNotificationSave} className="space-y-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {allowedNotifications.map((item) => (
+                  <label key={item.value} className="flex items-center space-x-3 cursor-pointer">
+                    <input 
+                      type="checkbox" 
+                      name="notifications"
+                      value={item.value}
+                      defaultChecked={userNotifications.includes(item.value) || userNotifications.length === 0} 
+                      className="h-4 w-4 rounded border-gray-300 text-primary" 
+                    />
+                    <span className="text-sm font-medium">{item.label}</span>
+                  </label>
+                ))}
+              </div>
+              <div className="flex justify-end pt-2">
+                <Button type="submit" disabled={isPending} className="font-bold">
+                  {isPending ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Opslaan...</> : 'Meldingen Opslaan'}
+                </Button>
+              </div>
+            </form>
           </CardContent>
         </Card>
       </div>

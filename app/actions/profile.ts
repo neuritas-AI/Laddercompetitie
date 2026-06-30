@@ -21,13 +21,15 @@ export async function updateProfile(formData: FormData): Promise<ProfileUpdateRe
   const phone = formData.get('phone') as string
   const address = formData.get('address') as string
   const birth_date = formData.get('birth_date') as string
+  const share_phone = formData.get('share_phone') === 'on'
 
-  const updates: Record<string, string | null> = {
+  const updates: Record<string, any> = {
     first_name,
     last_name,
     phone: phone || null,
     address: address || null,
     birth_date: birth_date || null,
+    share_phone,
     updated_at: new Date().toISOString(),
   }
 
@@ -40,9 +42,35 @@ export async function updateProfile(formData: FormData): Promise<ProfileUpdateRe
     return { success: false, error: error.message }
   }
 
-  // Revalidate every layout & page that shows user data
   revalidatePath('/', 'layout')
+  return { success: true }
+}
 
+export async function updateNotificationPreferences(formData: FormData): Promise<ProfileUpdateResult> {
+  const supabase = await createClient()
+  const { data: { user }, error: authError } = await supabase.auth.getUser()
+
+  if (authError || !user) {
+    return { success: false, error: 'Niet ingelogd.' }
+  }
+
+  const notifications = formData.getAll('notifications') as string[]
+  
+  // Get existing preferences first
+  const { data: profile } = await supabase.from('profiles').select('preferences').eq('id', user.id).single()
+  const prefs = profile?.preferences || {}
+  prefs.notifications = notifications
+
+  const { error } = await supabase
+    .from('profiles')
+    .update({ preferences: prefs })
+    .eq('id', user.id)
+
+  if (error) {
+    return { success: false, error: error.message }
+  }
+
+  revalidatePath('/', 'layout')
   return { success: true }
 }
 

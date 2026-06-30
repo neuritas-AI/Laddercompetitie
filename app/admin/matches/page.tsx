@@ -2,6 +2,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { CalendarClock, CheckCircle2, AlertCircle, Clock } from 'lucide-react'
 import { createClient } from '@/utils/supabase/server'
+import ConfirmMatchButton from '@/components/admin/confirm-match-button'
 
 const statusConfig: Record<string, { label: string; color: string }> = {
   scheduled: { label: 'Gepland', color: 'bg-blue-100 text-blue-800' },
@@ -84,9 +85,7 @@ export default async function AdminMatchesPage() {
                         {st.label}
                       </span>
                       {match.status === 'played' && (
-                        <Button size="sm" className="h-8 font-bold rounded-lg bg-primary hover:bg-primary/90 text-white text-xs">
-                          <CheckCircle2 className="w-3.5 h-3.5 mr-1" /> Bevestigen
-                        </Button>
+                        <ConfirmMatchButton matchId={match.id} />
                       )}
                     </div>
                   </div>

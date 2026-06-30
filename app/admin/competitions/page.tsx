@@ -1,14 +1,24 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { Plus, Edit, Trash2, Trophy } from 'lucide-react'
+import { Plus, Edit, Trash2, Trophy, Users } from 'lucide-react'
 import { createClient } from '@/utils/supabase/server'
 import AddCompetitionDialog from '@/components/admin/add-competition-dialog'
+import UpdateCompetitionStatusButton from './update-status-button'
+import EditCompetitionDialog from '@/components/admin/edit-competition-dialog'
+import DeleteCompetitionButton from '@/components/admin/delete-competition-button'
 
 const typeLabels: Record<string, string> = {
   single_winter: 'Enkel Winter',
   single_summer: 'Enkel Zomer',
   double_winter: 'Dubbel Winter',
   double_summer: 'Dubbel Zomer',
+}
+
+const statusLabels: Record<string, { label: string; color: string }> = {
+  open: { label: 'Open', color: 'bg-green-100 text-green-800' },
+  closed: { label: 'Gesloten', color: 'bg-red-100 text-red-800' },
+  finished: { label: 'Afgelopen', color: 'bg-gray-200 text-gray-800' },
+  draft: { label: 'Concept', color: 'bg-yellow-100 text-yellow-800' },
 }
 
 export default async function AdminCompetitionsPage() {
@@ -25,6 +35,8 @@ export default async function AdminCompetitionsPage() {
       season_year,
       start_date,
       end_date,
+      status,
+      max_participants,
       poules(id)
     `)
     .order('season_year', { ascending: false })
@@ -52,8 +64,9 @@ export default async function AdminCompetitionsPage() {
               {competitions.map((comp) => {
                 const pouleCount = (comp.poules as any[])?.length ?? 0
                 const label = typeLabels[comp.type] ?? comp.type
+                const statusInfo = statusLabels[comp.status || 'draft'] || statusLabels['draft']
                 return (
-                  <div key={comp.id} className="flex flex-col sm:flex-row items-start sm:items-center justify-between p-5 hover:bg-muted/10 transition-colors gap-4">
+                  <div key={comp.id} className="flex flex-col lg:flex-row items-start lg:items-center justify-between p-5 hover:bg-muted/10 transition-colors gap-4">
                     <div className="flex items-center gap-4">
                       <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
                         <Trophy className="w-6 h-6 text-primary" />
@@ -61,17 +74,23 @@ export default async function AdminCompetitionsPage() {
                       <div>
                         <div className="flex items-center gap-2 flex-wrap">
                           <p className="font-bold text-foreground">{comp.name}</p>
-                          <span className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full ${comp.is_active ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-600'}`}>
-                            {comp.is_active ? 'Actief' : 'Afgesloten'}
+                          <span className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full ${statusInfo.color}`}>
+                            {statusInfo.label}
                           </span>
                         </div>
                         <p className="text-sm text-muted-foreground font-medium mt-0.5">{label} · {comp.season_year}</p>
                       </div>
                     </div>
-                    <div className="flex items-center flex-wrap gap-4 w-full sm:w-auto">
-                      <div className="flex flex-col gap-1 min-w-[80px]">
+                    <div className="flex items-center flex-wrap gap-6 w-full lg:w-auto">
+                      <div className="flex flex-col gap-1">
+                        <span className="text-[10px] uppercase tracking-wider text-muted-foreground font-bold flex items-center gap-1">
+                          <Users className="w-3 h-3" /> Max Spelers
+                        </span>
+                        <span className="text-sm font-semibold text-foreground">{comp.max_participants || 'Onbeperkt'}</span>
+                      </div>
+                      <div className="flex flex-col gap-1 min-w-[60px]">
                         <span className="text-[10px] uppercase tracking-wider text-muted-foreground font-bold">Poules</span>
-                        <span className="text-lg font-black text-foreground">{pouleCount}</span>
+                        <span className="text-sm font-black text-foreground">{pouleCount}</span>
                       </div>
                       <div className="flex flex-col gap-1 min-w-[100px]">
                         <span className="text-[10px] uppercase tracking-wider text-muted-foreground font-bold">Periode</span>
@@ -80,12 +99,9 @@ export default async function AdminCompetitionsPage() {
                         </span>
                       </div>
                       <div className="flex items-center gap-2 ml-auto sm:ml-0">
-                        <Button variant="outline" size="sm" className="h-9 font-bold rounded-lg">
-                          <Edit className="h-4 w-4 mr-1 text-blue-600" /> Bewerken
-                        </Button>
-                        <Button variant="outline" size="sm" className="h-9 font-bold rounded-lg">
-                          <Trash2 className="h-4 w-4 text-red-600" />
-                        </Button>
+                        <UpdateCompetitionStatusButton competitionId={comp.id} currentStatus={comp.status || 'draft'} />
+                        <EditCompetitionDialog competition={comp} />
+                        <DeleteCompetitionButton id={comp.id} pouleCount={pouleCount} />
                       </div>
                     </div>
                   </div>

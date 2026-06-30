@@ -5,13 +5,20 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import Link from 'next/link'
 import { redirect } from 'next/navigation'
-import { Trophy } from 'lucide-react'
+import { Trophy, AlertCircle, CheckCircle } from 'lucide-react'
 
-export default async function LoginPage() {
-  // Redirect if already logged in
+export default async function LoginPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ error?: string; success?: string }>
+}) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (user) redirect('/dashboard')
+
+  const params = await searchParams
+  const errorMsg = params.error
+  const successMsg = params.success
 
   return (
     <Card className="w-full max-w-md shadow-xl border-0">
@@ -22,9 +29,23 @@ export default async function LoginPage() {
           </div>
         </div>
         <CardTitle className="text-3xl font-extrabold">Welkom terug</CardTitle>
-        <CardDescription className="text-base">Meld je aan bij je Tennis Ladder account</CardDescription>
+        <CardDescription className="text-base">Meld je aan bij je TPA Ladder account</CardDescription>
       </CardHeader>
       <CardContent>
+        {successMsg && (
+          <div className="flex items-start gap-2 rounded-lg bg-green-50 border border-green-200 p-4 text-sm text-green-700 mb-5">
+            <CheckCircle className="w-4 h-4 mt-0.5 shrink-0" />
+            <span>{decodeURIComponent(successMsg)}</span>
+          </div>
+        )}
+
+        {errorMsg && (
+          <div className="flex items-start gap-2 rounded-lg bg-red-50 border border-red-200 p-4 text-sm text-red-700 mb-5">
+            <AlertCircle className="w-4 h-4 mt-0.5 shrink-0" />
+            <span>{decodeURIComponent(errorMsg)}</span>
+          </div>
+        )}
+
         <form action="/api/auth/login" method="POST" className="space-y-5">
           <div className="space-y-2">
             <Label htmlFor="email">E-mailadres</Label>
@@ -49,24 +70,11 @@ export default async function LoginPage() {
               className="h-11"
             />
           </div>
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-2">
-              <input
-                id="remember-me"
-                name="remember-me"
-                type="checkbox"
-                className="h-4 w-4 rounded border-gray-300 text-primary"
-              />
-              <label htmlFor="remember-me" className="text-sm text-muted-foreground">Onthoud mij</label>
-            </div>
-            <Link href="/forgot-password" className="text-sm font-medium text-primary hover:underline">
-              Wachtwoord vergeten?
-            </Link>
-          </div>
           <Button type="submit" className="w-full h-12 text-base font-semibold">
             Aanmelden
           </Button>
         </form>
+
         <p className="mt-6 text-center text-sm text-muted-foreground">
           Nog geen account?{' '}
           <Link href="/register" className="font-semibold text-primary hover:underline">

@@ -1,8 +1,9 @@
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { Calendar, Trophy, ChevronRight, PenSquare, User, MoreVertical, Bell } from 'lucide-react'
+import { Calendar, Trophy, ChevronRight, PenSquare, User, MoreVertical } from 'lucide-react'
 import Link from 'next/link'
 import { createClient } from '@/utils/supabase/server'
+import NotificationsDropdown from '@/components/notifications-dropdown'
 
 export default async function PlayerDashboard() {
   const supabase = await createClient()
@@ -16,6 +17,14 @@ export default async function PlayerDashboard() {
     .single()
 
   const firstName = profile?.first_name || 'Speler'
+
+  // Fetch notifications
+  const { data: notifications } = await supabase
+    .from('notifications')
+    .select('id, title, message, type, is_read, link_url, created_at')
+    .eq('user_id', user!.id)
+    .order('created_at', { ascending: false })
+    .limit(20)
 
   // Fetch poule info
   const { data: poulePlayer } = await supabase
@@ -76,12 +85,6 @@ export default async function PlayerDashboard() {
     .order('scheduled_date', { ascending: false })
     .limit(3)
 
-  // Unread notifications count
-  const { count: notifCount } = await supabase
-    .from('notifications')
-    .select('*', { count: 'exact', head: true })
-    .eq('user_id', user!.id)
-    .eq('is_read', false)
 
   // Helper to get opponent
   const getOpponent = (match: any) => {
@@ -102,14 +105,7 @@ export default async function PlayerDashboard() {
           <p className="text-muted-foreground text-sm font-medium">Welkom terug,</p>
           <h1 className="text-3xl font-black text-foreground flex items-center gap-2">{firstName} 👋</h1>
         </div>
-        <button className="relative p-2 text-muted-foreground hover:text-foreground transition-colors">
-          <Bell className="h-6 w-6" />
-          {notifCount && notifCount > 0 ? (
-            <span className="absolute top-1 right-1 h-3 w-3 bg-red-600 border-2 border-background rounded-full flex items-center justify-center text-[8px] font-bold text-white">
-              {notifCount > 9 ? '9+' : notifCount}
-            </span>
-          ) : null}
-        </button>
+        <NotificationsDropdown notifications={notifications || []} />
       </div>
 
       {/* Top Cards Row */}

@@ -1,39 +1,102 @@
 import { createClient } from '@/utils/supabase/server'
+import { createClient as createSupabaseClient } from '@supabase/supabase-js'
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 
 export async function POST(request: NextRequest) {
   const formData = await request.formData()
-  const email = formData.get('email') as string
+
+  const first_name = (formData.get('first_name') as string)?.trim()
+  const last_name = (formData.get('last_name') as string)?.trim()
+  const email = (formData.get('email') as string)?.trim().toLowerCase()
+  const phone = (formData.get('phone') as string)?.trim()
   const password = formData.get('password') as string
-  const firstName = formData.get('first_name') as string
-  const lastName = formData.get('last_name') as string
-  const phone = formData.get('phone') as string
-  const birthDate = formData.get('birth_date') as string
-  const address = formData.get('address') as string
+  const competitionIds = formData.getAll('competitions') as string[]
 
-  const supabase = await createClient()
-
-  const { data, error } = await supabase.auth.signUp({
-    email,
-    password,
-    options: {
-      data: {
-        first_name: firstName,
-        last_name: lastName,
-      },
-    },
-  })
-
-  if (error || !data.user) {
-    return NextResponse.redirect(new URL('/register?error=' + encodeURIComponent(error?.message || 'Registratie mislukt'), request.url))
+  // Validation
+  if (!first_name || !last_name || !email || !phone || !password) {
+    return NextResponse.redirect(
+      new URL('/register?error=' + encodeURIComponent('Alle velden zijn verplicht.'), request.url)
+    )
   }
 
-  // Update profile with extra fields
-  await supabase
-    .from('profiles')
-    .update({ phone, birth_date: birthDate || null, address, is_active: true })
-    .eq('id', data.user.id)
+  if (password.length < 8) {
+    return NextResponse.redirect(
+      new URL('/register?error=' + encodeURIComponent('Wachtwoord moet minstens 8 tekens bevatten.'), request.url)
+    )
+  }
 
-  return NextResponse.redirect(new URL('/dashboard', request.url))
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
+  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY!
+
+  // Step 1: Create user via Supabase Auth REST API (avoids SDK trigger issues)
+  const createUserRes = await fetch(`${supabaseUrl}/auth/v1/admin/users`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'apikey': serviceRoleKey,
+      'Authorization': `Bearer ${serviceRoleKey}`,
+    },
+    body: JSON.stringify({
+      email,
+      password,
+      email_confirm: true,
+      user_metadata: {
+        first_name,
+        last_name,
+      },
+    }),
+  })
+
+  const userData = await createUserRes.json()
+
+  if (!createUserRes.ok) {
+    const errMsg = userData?.message || userData?.msg || 'Registratie mislukt.'
+    // Handle "already registered" error
+    if (errMsg.toLowerCase().includes('already registered') || errMsg.toLowerCase().includes('already been registered')) {
+      return NextResponse.redirect(
+        new URL('/register?error=' + encodeURIComponent('Er bestaat al een account met dit e-mailadres.'), request.url)
+      )
+    }
+    return NextResponse.redirect(
+      new URL('/register?error=' + encodeURIComponent(errMsg), request.url)
+    )
+  }
+
+  const newUserId: string = userData.id
+
+  if (!newUserId) {
+    return NextResponse.redirect(
+      new URL('/register?error=' + encodeURIComponent('Registratie mislukt, probeer opnieuw.'), request.url)
+    )
+  }
+
+  // Step 2: Create / update profile with all data using admin client (bypasses RLS)
+  const adminDb = createSupabaseClient(supabaseUrl, serviceRoleKey)
+
+  await adminDb.from('profiles').upsert({
+    id: newUserId,
+    first_name,
+    last_name,
+    email,
+    phone,
+    role: 'player',
+    is_active: true,
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+  }, { onConflict: 'id' })
+
+  // Step 3: Link chosen competitions
+  if (competitionIds.length > 0) {
+    const registrations = competitionIds.map(competition_id => ({
+      competition_id,
+      player_id: newUserId,
+    }))
+
+    await adminDb
+      .from('competition_registrations')
+      .upsert(registrations, { onConflict: 'competition_id,player_id', ignoreDuplicates: true })
+  }
+
+  return NextResponse.redirect(new URL('/register?success=1', request.url))
 }
