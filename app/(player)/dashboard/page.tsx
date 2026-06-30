@@ -1,9 +1,11 @@
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { Calendar, Trophy, ChevronRight, PenSquare, User, MoreVertical } from 'lucide-react'
+import { Badge } from '@/components/ui/badge'
+import { Calendar, Trophy, ChevronRight, PenSquare, User } from 'lucide-react'
 import Link from 'next/link'
 import { createClient } from '@/utils/supabase/server'
-import NotificationsDropdown from '@/components/notifications-dropdown'
+import { getDisplayName } from '@/lib/profile'
+import { REGISTRATION_STATUS_LABELS } from '@/lib/competitions'
 
 export default async function PlayerDashboard() {
   const supabase = await createClient()
@@ -16,15 +18,19 @@ export default async function PlayerDashboard() {
     .eq('id', user!.id)
     .single()
 
-  const firstName = profile?.first_name || 'Speler'
+  const displayName = getDisplayName(profile ?? {})
+  const firstName = profile?.first_name?.trim() || displayName.split(' ')[0]
 
-  // Fetch notifications
-  const { data: notifications } = await supabase
-    .from('notifications')
-    .select('id, title, message, type, is_read, link_url, created_at')
-    .eq('user_id', user!.id)
+  // Fetch user's competition registrations
+  const { data: registrations } = await supabase
+    .from('competition_registrations')
+    .select(`
+      status,
+      competitions (id, name, type, season_year, start_date, end_date)
+    `)
+    .eq('player_id', user!.id)
+    .neq('status', 'cancelled')
     .order('created_at', { ascending: false })
-    .limit(20)
 
   // Fetch poule info
   const { data: poulePlayer } = await supabase
@@ -103,10 +109,40 @@ export default async function PlayerDashboard() {
       <div className="flex items-center justify-between">
         <div>
           <p className="text-muted-foreground text-sm font-medium">Welkom terug,</p>
-          <h1 className="text-3xl font-black text-foreground flex items-center gap-2">{firstName} 👋</h1>
+          <h1 className="text-3xl font-black text-foreground flex items-center gap-2">{displayName} 👋</h1>
         </div>
-        <NotificationsDropdown notifications={notifications || []} />
       </div>
+
+      {/* My Competitions */}
+      {registrations && registrations.length > 0 && (
+        <div className="space-y-3">
+          <div className="flex items-center justify-between">
+            <h2 className="text-lg font-bold text-foreground">Mijn competities</h2>
+            <Link href="/competitions" className="text-xs font-bold text-primary hover:underline">Bekijk alles</Link>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            {registrations.map((reg) => {
+              const comp = reg.competitions as any
+              if (!comp) return null
+              const statusLabel = REGISTRATION_STATUS_LABELS[reg.status] ?? reg.status
+              return (
+                <Card key={comp.id} className="p-4 border border-border/50 shadow-subtle">
+                  <div className="flex items-start gap-3">
+                    <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
+                      <Trophy className="w-5 h-5 text-primary" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="font-bold text-sm truncate">{comp.name}</p>
+                      <p className="text-xs text-muted-foreground">Seizoen {comp.season_year}</p>
+                      <Badge className="mt-2 bg-primary/10 text-primary border-0 text-[10px] font-bold">{statusLabel}</Badge>
+                    </div>
+                  </div>
+                </Card>
+              )
+            })}
+          </div>
+        </div>
+      )}
 
       {/* Top Cards Row */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
@@ -260,7 +296,7 @@ export default async function PlayerDashboard() {
           {/* Snelle acties */}
           <div>
             <h2 className="text-lg font-bold text-foreground mb-4">Snelle acties</h2>
-            <div className="grid grid-cols-3 gap-3">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
               <Link href="/matches" className="bg-card border border-border/50 rounded-2xl p-3 flex flex-col items-center justify-center gap-2 hover:bg-primary/5 transition-colors shadow-subtle group">
                 <Calendar className="w-6 h-6 text-primary group-hover:scale-110 transition-transform" />
                 <span className="text-[9px] text-center font-bold leading-tight">Plan een<br/>datum</span>
@@ -268,6 +304,10 @@ export default async function PlayerDashboard() {
               <Link href="/matches" className="bg-card border border-border/50 rounded-2xl p-3 flex flex-col items-center justify-center gap-2 hover:bg-primary/5 transition-colors shadow-subtle group">
                 <PenSquare className="w-6 h-6 text-primary group-hover:scale-110 transition-transform" />
                 <span className="text-[9px] text-center font-bold leading-tight">Score<br/>ingeven</span>
+              </Link>
+              <Link href="/competitions" className="bg-card border border-border/50 rounded-2xl p-3 flex flex-col items-center justify-center gap-2 hover:bg-primary/5 transition-colors shadow-subtle group">
+                <Trophy className="w-6 h-6 text-primary group-hover:scale-110 transition-transform" />
+                <span className="text-[9px] text-center font-bold leading-tight">Competitie<br/>inschrijven</span>
               </Link>
               <Link href="/profile" className="bg-card border border-border/50 rounded-2xl p-3 flex flex-col items-center justify-center gap-2 hover:bg-primary/5 transition-colors shadow-subtle group">
                 <User className="w-6 h-6 text-primary group-hover:scale-110 transition-transform" />

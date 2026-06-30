@@ -86,11 +86,11 @@ export default function AddAdminDialog() {
           <form action={onSubmit} className="space-y-4 pt-4">
             <div className="space-y-2">
               <Label htmlFor="name">Volledige Naam</Label>
-              <Input id="name" name="name" required placeholder="bijv. Jan Peeters" />
+              <Input id="name" name="name" required placeholder="Naam" />
             </div>
             <div className="space-y-2">
               <Label htmlFor="email">E-mailadres</Label>
-              <Input id="email" name="email" type="email" required placeholder="bijv. jan@club.be" />
+              <Input id="email" name="email" type="email" required placeholder="E-mailadres" />
             </div>
 
             {error && <div className="text-sm font-medium text-red-500">{error}</div>}

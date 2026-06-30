@@ -1,14 +1,6 @@
-import Link from 'next/link'
-import { CalendarDays, User, LogOut, Home, ListOrdered } from 'lucide-react'
 import { createClient } from '@/utils/supabase/server'
+import { getDisplayName } from '@/lib/profile'
 import PlayerLayoutClient from '@/components/player-layout-client'
-
-const navItems = [
-  { href: '/dashboard', label: 'Dashboard', icon: 'Home' as const },
-  { href: '/matches', label: 'Wedstrijden', icon: 'CalendarDays' as const },
-  { href: '/ranking', label: 'Rangschikking', icon: 'ListOrdered' as const },
-  { href: '/profile', label: 'Profiel', icon: 'User' as const },
-]
 
 export default async function PlayerLayout({ children }: { children: React.ReactNode }) {
   const supabase = await createClient()
@@ -25,7 +17,6 @@ export default async function PlayerLayout({ children }: { children: React.React
       .single()
     profile = data
 
-    // Get poule info for this user
     const { data: pp } = await supabase
       .from('poule_players')
       .select('position, poules(name)')
@@ -34,10 +25,7 @@ export default async function PlayerLayout({ children }: { children: React.React
     pouleInfo = pp
   }
 
-  const displayName = profile
-    ? [profile.first_name, profile.last_name].filter(Boolean).join(' ') || profile.email
-    : 'Speler'
-
+  const displayName = profile ? getDisplayName(profile) : 'Speler'
   const pouleLabel = (pouleInfo?.poules as any)?.name ?? null
 
   let notifications: any[] = []

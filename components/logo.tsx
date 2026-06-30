@@ -7,9 +7,9 @@ interface LogoProps {
 
 export default function Logo({ size = 'md', inverted = false }: LogoProps) {
   const sizes = {
-    sm: { img: 24, text: 'text-lg', sub: 'text-[9px]' },
-    md: { img: 32, text: 'text-2xl', sub: 'text-[10px]' },
-    lg: { img: 40, text: 'text-4xl', sub: 'text-xs' },
+    sm: { img: 28, text: 'text-lg', sub: 'text-[9px]' },
+    md: { img: 36, text: 'text-2xl', sub: 'text-[10px]' },
+    lg: { img: 44, text: 'text-4xl', sub: 'text-xs' },
   }
 
   const { img, text, sub } = sizes[size]
@@ -18,13 +18,13 @@ export default function Logo({ size = 'md', inverted = false }: LogoProps) {
 
   return (
     <div className="flex items-center gap-3">
-      <div className="shrink-0 flex items-center justify-center bg-white rounded-md p-1 shadow-sm">
-        <Image 
-          src="/logo-16.png" 
-          alt="TPA Logo" 
-          width={img} 
+      <div className="shrink-0 flex items-center justify-center">
+        <Image
+          src="/icon.png"
+          alt="TPA Ladder"
+          width={img}
           height={img}
-          className="object-contain"
+          className="object-contain rounded-lg"
           priority
         />
       </div>

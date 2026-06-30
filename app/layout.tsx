@@ -13,10 +13,12 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Tennis Ladder",
+  title: "TPA Ladder",
   description: "De moderne Progressive Web App voor tennis laddercompetities.",
+  applicationName: "TPA Ladder",
   icons: {
-    icon: '/logo-16.png',
+    icon: [{ url: "/icon.png", type: "image/png" }],
+    apple: [{ url: "/apple-icon.png", type: "image/png" }],
   },
 };
 

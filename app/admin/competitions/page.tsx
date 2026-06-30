@@ -37,6 +37,7 @@ export default async function AdminCompetitionsPage() {
       end_date,
       status,
       max_participants,
+      price,
       poules(id)
     `)
     .order('season_year', { ascending: false })
@@ -82,6 +83,12 @@ export default async function AdminCompetitionsPage() {
                       </div>
                     </div>
                     <div className="flex items-center flex-wrap gap-6 w-full lg:w-auto">
+                      <div className="flex flex-col gap-1">
+                        <span className="text-[10px] uppercase tracking-wider text-muted-foreground font-bold">Kostprijs</span>
+                        <span className="text-sm font-semibold text-foreground">
+                          {comp.price ? `€ ${Number(comp.price).toFixed(2)}` : 'Gratis'}
+                        </span>
+                      </div>
                       <div className="flex flex-col gap-1">
                         <span className="text-[10px] uppercase tracking-wider text-muted-foreground font-bold flex items-center gap-1">
                           <Users className="w-3 h-3" /> Max Spelers

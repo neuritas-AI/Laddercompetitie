@@ -2,13 +2,14 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { CalendarDays, User, LogOut, Home, ListOrdered, ChevronDown } from 'lucide-react'
+import { CalendarDays, User, LogOut, Home, ListOrdered, ChevronDown, Trophy } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import Logo from '@/components/logo'
 import NotificationsDropdown, { NotificationType } from '@/components/notifications-dropdown'
 
 const navItems = [
   { href: '/dashboard', label: 'Dashboard', icon: Home },
+  { href: '/competitions', label: 'Competities', icon: Trophy },
   { href: '/matches', label: 'Wedstrijden', icon: CalendarDays },
   { href: '/ranking', label: 'Rangschikking', icon: ListOrdered },
   { href: '/profile', label: 'Profiel', icon: User },
@@ -38,7 +39,7 @@ export default function PlayerLayoutClient({
         <div className="p-8 flex items-center justify-center">
           <Logo size="lg" inverted />
         </div>
-        
+
         <nav className="flex-1 px-4 py-6 space-y-2">
           {navItems.map(({ href, label, icon: Icon }) => {
             const isActive = pathname === href
@@ -48,8 +49,8 @@ export default function PlayerLayoutClient({
                 href={href}
                 className={cn(
                   'flex items-center gap-4 px-4 py-3.5 rounded-2xl font-bold transition-all',
-                  isActive 
-                    ? 'bg-primary text-white shadow-soft-red' 
+                  isActive
+                    ? 'bg-primary text-white shadow-soft-red'
                     : 'text-white/70 hover:bg-white/10 hover:text-white'
                 )}
               >
@@ -81,7 +82,7 @@ export default function PlayerLayoutClient({
               </div>
               <ChevronDown className="h-4 w-4 text-white/50 group-hover:text-white transition-colors" />
             </Link>
-            
+
             <form action="/api/auth/sign-out" method="post">
               <button type="submit" className="flex items-center gap-2 text-sm font-semibold text-white/70 hover:text-white transition-colors w-full">
                 <LogOut className="h-4 w-4" />
@@ -94,14 +95,21 @@ export default function PlayerLayoutClient({
 
       {/* Main Content Area */}
       <div className="flex-1 lg:pl-[280px] flex flex-col min-w-0">
+        {/* Top bar with notifications */}
+        <div className="hidden lg:flex items-center justify-end px-8 pt-6 pb-0 max-w-6xl mx-auto w-full">
+          <NotificationsDropdown notifications={notifications} variant="light" />
+        </div>
+
         <main className="flex-1 w-full max-w-6xl mx-auto p-4 sm:p-8 lg:p-10 pb-28 lg:pb-10">
           {children}
         </main>
       </div>
 
       {/* Mobile Header */}
-      <div className="lg:hidden fixed top-0 w-full bg-mockup-sidebar z-40 px-4 py-3 flex items-center justify-center shadow-md">
+      <div className="lg:hidden fixed top-0 w-full bg-mockup-sidebar z-40 px-4 py-3 flex items-center justify-between shadow-md">
+        <div className="w-10" />
         <Logo size="sm" inverted />
+        <NotificationsDropdown notifications={notifications} variant="dark" />
       </div>
 
       {/* Mobile Bottom Navigation */}

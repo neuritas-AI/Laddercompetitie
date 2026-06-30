@@ -1,10 +1,10 @@
 'use client'
 
-import { useState, useTransition, useRef, useEffect } from 'react'
+import { useState, useTransition, useRef, useEffect, useCallback } from 'react'
 import { Bell, Check, Trash2, Clock, CalendarDays, Trophy } from 'lucide-react'
-import { Button } from '@/components/ui/button'
 import { markAsRead, markAllAsRead, deleteNotification } from '@/app/actions/notifications'
 import Link from 'next/link'
+import { createClient } from '@/utils/supabase/client'
 
 export type NotificationType = {
   id: string
@@ -16,18 +16,52 @@ export type NotificationType = {
   created_at: string
 }
 
-export default function NotificationsDropdown({ notifications }: { notifications: NotificationType[] }) {
+export default function NotificationsDropdown({
+  notifications,
+  variant = 'dark',
+}: {
+  notifications: NotificationType[]
+  variant?: 'dark' | 'light'
+}) {
   const [open, setOpen] = useState(false)
   const [localNotifications, setLocalNotifications] = useState(notifications)
+  const [hasNew, setHasNew] = useState(false)
   const [isPending, startTransition] = useTransition()
   const ref = useRef<HTMLDivElement>(null)
+  const prevUnreadRef = useRef(0)
 
-  // Sync when server re-renders with fresh data
   useEffect(() => {
     setLocalNotifications(notifications)
   }, [notifications])
 
-  // Close on click outside
+  const fetchNotifications = useCallback(async () => {
+    const supabase = createClient()
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return
+
+    const { data } = await supabase
+      .from('notifications')
+      .select('id, title, message, type, is_read, link_url, created_at')
+      .eq('user_id', user.id)
+      .order('created_at', { ascending: false })
+      .limit(20)
+
+    if (data) {
+      const newUnread = data.filter(n => !n.is_read).length
+      if (newUnread > prevUnreadRef.current) {
+        setHasNew(true)
+        setTimeout(() => setHasNew(false), 3000)
+      }
+      prevUnreadRef.current = newUnread
+      setLocalNotifications(data)
+    }
+  }, [])
+
+  useEffect(() => {
+    const interval = setInterval(fetchNotifications, 15000)
+    return () => clearInterval(interval)
+  }, [fetchNotifications])
+
   useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
       if (ref.current && !ref.current.contains(e.target as Node)) {
@@ -36,9 +70,10 @@ export default function NotificationsDropdown({ notifications }: { notifications
     }
     if (open) {
       document.addEventListener('mousedown', handleClickOutside)
+      fetchNotifications()
     }
     return () => document.removeEventListener('mousedown', handleClickOutside)
-  }, [open])
+  }, [open, fetchNotifications])
 
   const unreadCount = localNotifications.filter(n => !n.is_read).length
 
@@ -76,28 +111,41 @@ export default function NotificationsDropdown({ notifications }: { notifications
     }
   }
 
+  const triggerClasses = variant === 'dark'
+    ? 'bg-white/15 hover:bg-white/25 border-white/20 text-white'
+    : 'bg-primary/10 hover:bg-primary/15 border-primary/20 text-primary'
+
   return (
     <div ref={ref} className="relative">
-      {/* Trigger Button */}
       <button
         onClick={() => setOpen(v => !v)}
-        className="relative h-10 w-10 flex items-center justify-center rounded-full bg-white/10 hover:bg-white/20 border border-white/10 text-white transition-colors shrink-0"
-        aria-label="Meldingen"
+        className={`relative h-11 w-11 flex items-center justify-center rounded-full border transition-all shrink-0 ${triggerClasses} ${
+          unreadCount > 0 ? 'notification-bell-pulse' : ''
+        } ${hasNew ? 'notification-bell-ring' : ''}`}
+        aria-label={`Meldingen${unreadCount > 0 ? ` (${unreadCount} ongelezen)` : ''}`}
       >
-        <Bell className="w-5 h-5" />
+        <Bell className={`w-5 h-5 ${unreadCount > 0 ? 'text-white' : ''}`} />
         {unreadCount > 0 && (
-          <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] font-bold rounded-full w-5 h-5 flex items-center justify-center border-2 border-[#121212]">
-            {unreadCount > 9 ? '9+' : unreadCount}
-          </span>
+          <>
+            <span className="absolute inset-0 rounded-full bg-red-500/30 animate-ping" />
+            <span className="absolute -top-1.5 -right-1.5 min-w-[22px] h-[22px] px-1 bg-red-500 text-white text-[11px] font-black rounded-full flex items-center justify-center border-2 border-white shadow-lg z-10">
+              {unreadCount > 9 ? '9+' : unreadCount}
+            </span>
+          </>
         )}
       </button>
 
-      {/* Dropdown Panel */}
       {open && (
         <div className="absolute right-0 mt-2 w-80 bg-card border border-border rounded-2xl shadow-2xl overflow-hidden z-[200]">
-          {/* Header */}
-          <div className="flex items-center justify-between px-4 py-3 bg-muted/30 border-b border-border/50">
-            <h3 className="font-bold text-sm text-foreground">Meldingen</h3>
+          <div className="flex items-center justify-between px-4 py-3 bg-primary/5 border-b border-border/50">
+            <div className="flex items-center gap-2">
+              <h3 className="font-bold text-sm text-foreground">Meldingen</h3>
+              {unreadCount > 0 && (
+                <span className="bg-red-500 text-white text-[10px] font-black px-1.5 py-0.5 rounded-full">
+                  {unreadCount} nieuw
+                </span>
+              )}
+            </div>
             {unreadCount > 0 && (
               <button
                 onClick={handleMarkAllAsRead}
@@ -109,7 +157,6 @@ export default function NotificationsDropdown({ notifications }: { notifications
             )}
           </div>
 
-          {/* Notification list */}
           <div className="max-h-[400px] overflow-y-auto">
             {localNotifications.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-10 text-muted-foreground">
@@ -121,16 +168,14 @@ export default function NotificationsDropdown({ notifications }: { notifications
                 {localNotifications.map((n) => (
                   <div
                     key={n.id}
-                    className={`flex p-4 gap-3 transition-colors ${!n.is_read ? 'bg-primary/5' : ''}`}
+                    className={`flex p-4 gap-3 transition-colors ${!n.is_read ? 'bg-primary/5 border-l-2 border-l-primary' : ''}`}
                   >
-                    {/* Icon */}
                     <div className="shrink-0 mt-0.5">
                       <div className="w-8 h-8 rounded-full bg-background border border-border flex items-center justify-center">
                         {getIcon(n.type)}
                       </div>
                     </div>
 
-                    {/* Content */}
                     <div className="flex-1 min-w-0">
                       {n.link_url ? (
                         <Link
@@ -145,7 +190,6 @@ export default function NotificationsDropdown({ notifications }: { notifications
                       )}
                       <p className="text-xs text-muted-foreground line-clamp-2">{n.message}</p>
 
-                      {/* Footer */}
                       <div className="flex items-center justify-between mt-2">
                         <p className="text-[10px] text-muted-foreground font-medium flex items-center gap-1">
                           <Clock className="w-3 h-3" />

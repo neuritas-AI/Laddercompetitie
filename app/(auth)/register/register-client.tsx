@@ -69,7 +69,7 @@ export default function RegisterClient({
               id="first_name"
               name="first_name"
               required
-              placeholder="Jan"
+              placeholder="Voornaam"
               className="h-11"
             />
           </div>
@@ -79,7 +79,7 @@ export default function RegisterClient({
               id="last_name"
               name="last_name"
               required
-              placeholder="Peeters"
+              placeholder="Achternaam"
               className="h-11"
             />
           </div>
@@ -92,7 +92,7 @@ export default function RegisterClient({
             name="email"
             type="email"
             required
-            placeholder="jan@voorbeeld.be"
+            placeholder="E-mailadres"
             className="h-11"
           />
         </div>
@@ -104,7 +104,7 @@ export default function RegisterClient({
             name="phone"
             type="tel"
             required
-            placeholder="+32 470 00 00 00"
+            placeholder="Telefoonnummer"
             className="h-11"
           />
         </div>

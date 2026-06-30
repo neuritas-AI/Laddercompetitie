@@ -1,4 +1,5 @@
 import { createClient } from '@/utils/supabase/server'
+import { getDisplayName } from '@/lib/profile'
 import AdminLayoutClient from '@/components/admin-layout-client'
 
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {
@@ -16,7 +17,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
       .single()
 
     if (profile) {
-      adminName = [profile.first_name, profile.last_name].filter(Boolean).join(' ') || profile.email
+      adminName = getDisplayName(profile)
       adminEmail = profile.email
     }
   }

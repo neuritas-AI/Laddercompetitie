@@ -38,7 +38,7 @@ export default function AddCompetitionDialog() {
         <form action={onSubmit} className="space-y-4 pt-4">
           <div className="space-y-2">
             <Label htmlFor="name">Naam</Label>
-            <Input id="name" name="name" required placeholder="bijv. Enkel Ladder Zomer 2026" />
+            <Input id="name" name="name" required placeholder="Competitienaam" />
           </div>
 
           <div className="grid grid-cols-2 gap-4">
@@ -91,6 +91,10 @@ export default function AddCompetitionDialog() {
             <div className="space-y-2">
               <Label htmlFor="max_participants">Max. deelnemers</Label>
               <Input id="max_participants" name="max_participants" type="number" min="2" defaultValue="32" />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="price">Kostprijs (€)</Label>
+              <Input id="price" name="price" type="number" min="0" step="0.01" defaultValue="0" placeholder="0.00" />
             </div>
           </div>
 

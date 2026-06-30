@@ -47,7 +47,7 @@ export default function AddTeamDialog({ players }: { players: Player[] }) {
         <form action={onSubmit} className="space-y-4 pt-4">
           <div className="space-y-2">
             <Label htmlFor="name">Teamnaam</Label>
-            <Input id="name" name="name" required placeholder="bijv. Team Peeters" />
+            <Input id="name" name="name" required placeholder="Teamnaam" />
           </div>
           
           <div className="space-y-2">

@@ -2,7 +2,8 @@ import { createClient } from '@/utils/supabase/server'
 import { redirect } from 'next/navigation'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import Link from 'next/link'
-import { Trophy, CheckCircle } from 'lucide-react'
+import { CheckCircle } from 'lucide-react'
+import Logo from '@/components/logo'
 import RegisterClient from './register-client'
 
 export default async function RegisterPage({
@@ -36,9 +37,7 @@ export default async function RegisterPage({
     <Card className="w-full max-w-2xl shadow-xl border-0">
       <CardHeader className="text-center space-y-3 pb-6">
         <div className="flex justify-center">
-          <div className="bg-primary/10 rounded-full p-3">
-            <Trophy className="h-8 w-8 text-primary" />
-          </div>
+          <Logo size="md" />
         </div>
         <CardTitle className="text-3xl font-extrabold">Account aanmaken</CardTitle>
         <CardDescription className="text-base">Schrijf je in voor de TPA Ladder competitie</CardDescription>

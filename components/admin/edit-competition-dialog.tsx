@@ -92,6 +92,10 @@ export default function EditCompetitionDialog({ competition }: { competition: an
               <Label htmlFor="max_participants">Max. deelnemers</Label>
               <Input id="max_participants" name="max_participants" type="number" min="2" defaultValue={competition.max_participants || 32} />
             </div>
+            <div className="space-y-2">
+              <Label htmlFor="price">Kostprijs (€)</Label>
+              <Input id="price" name="price" type="number" min="0" step="0.01" defaultValue={competition.price ?? 0} />
+            </div>
           </div>
 
           {error && <div className="text-sm font-medium text-red-500">{error}</div>}

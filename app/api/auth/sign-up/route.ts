@@ -91,6 +91,7 @@ export async function POST(request: NextRequest) {
     const registrations = competitionIds.map(competition_id => ({
       competition_id,
       player_id: newUserId,
+      status: 'registered',
     }))
 
     await adminDb

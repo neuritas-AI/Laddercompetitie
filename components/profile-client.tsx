@@ -1,14 +1,15 @@
 'use client'
 
-import { useState, useTransition, useRef } from 'react'
+import { useState, useTransition, useRef, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
-import { Camera, Lock, Bell, Loader2, CheckCircle2, AlertCircle } from 'lucide-react'
+import { Camera, Lock, Bell, Loader2, CheckCircle2, AlertCircle, Mail, Phone } from 'lucide-react'
 import { updateProfile, updatePassword, uploadAvatar, updateNotificationPreferences } from '@/app/actions/profile'
+import { getDisplayName, getInitials } from '@/lib/profile'
 
 interface Profile {
   first_name: string | null
@@ -26,8 +27,9 @@ interface Props {
   profile: Profile
 }
 
-export default function ProfileClient({ profile }: Props) {
-  const [avatarUrl, setAvatarUrl] = useState(profile.avatar_url ?? '')
+export default function ProfileClient({ profile: initialProfile }: Props) {
+  const [profile, setProfile] = useState(initialProfile)
+  const [avatarUrl, setAvatarUrl] = useState(initialProfile.avatar_url ?? '')
   const [uploading, setUploading] = useState(false)
   const [uploadMsg, setUploadMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
   const [saveMsg, setSaveMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
@@ -37,8 +39,13 @@ export default function ProfileClient({ profile }: Props) {
   const fileRef = useRef<HTMLInputElement>(null)
   const router = useRouter()
 
-  const displayName = [profile.first_name, profile.last_name].filter(Boolean).join(' ') || profile.email
-  const initials = displayName.slice(0, 2).toUpperCase()
+  useEffect(() => {
+    setProfile(initialProfile)
+    setAvatarUrl(initialProfile.avatar_url ?? '')
+  }, [initialProfile])
+
+  const displayName = getDisplayName(profile)
+  const initials = getInitials(profile)
 
   const handleAvatarUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     if (!event.target.files || event.target.files.length === 0) return
@@ -67,6 +74,16 @@ export default function ProfileClient({ profile }: Props) {
     startTransition(async () => {
       const result = await updateProfile(formData)
       if (result.success) {
+        const updated = {
+          ...profile,
+          first_name: (formData.get('first_name') as string) || null,
+          last_name: (formData.get('last_name') as string) || null,
+          phone: (formData.get('phone') as string) || null,
+          address: (formData.get('address') as string) || null,
+          birth_date: (formData.get('birth_date') as string) || null,
+          share_phone: formData.get('share_phone') === 'on',
+        }
+        setProfile(updated)
         setSaveMsg({ type: 'success', text: 'Profiel opgeslagen!' })
         router.refresh()
       } else {
@@ -111,47 +128,56 @@ export default function ProfileClient({ profile }: Props) {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold tracking-tight text-gray-900 dark:text-foreground">Mijn Profiel</h1>
-        <p className="text-muted-foreground">Beheer je persoonlijke gegevens en voorkeuren.</p>
-      </div>
-
-      <div className="grid gap-6 md:grid-cols-3">
-        {/* Avatar Card */}
-        <Card className="md:col-span-1 flex flex-col items-center justify-center p-6 text-center gap-4">
-          <Avatar className="h-24 w-24 border-4 border-white shadow-sm">
-            <AvatarImage src={avatarUrl} alt="Profiel foto" className="object-cover" />
-            <AvatarFallback className="text-2xl font-bold bg-primary/10 text-primary">{initials}</AvatarFallback>
-          </Avatar>
-          <div>
-            <p className="font-semibold text-lg">{displayName}</p>
-            <p className="text-sm text-muted-foreground">{profile.email}</p>
-          </div>
-          <div className="relative">
-            <Button variant="outline" size="sm" className="flex items-center gap-2 font-bold cursor-pointer relative" disabled={uploading}>
-              {uploading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Camera className="w-4 h-4" />}
-              {uploading ? 'Uploaden...' : 'Foto wijzigen'}
-              <input
-                ref={fileRef}
-                type="file"
-                accept="image/*"
-                onChange={handleAvatarUpload}
-                disabled={uploading}
-                className="absolute inset-0 w-full h-full opacity-0 cursor-pointer disabled:cursor-not-allowed"
-              />
-            </Button>
-            <p className="text-[10px] text-muted-foreground mt-2 font-medium">JPEG of PNG, max 2MB</p>
+      {/* Profile Header */}
+      <Card className="overflow-hidden border-0 shadow-soft">
+        <div className="bg-mockup-red px-6 py-8">
+          <div className="flex flex-col sm:flex-row items-center gap-6">
+            <Avatar className="h-24 w-24 border-4 border-white shadow-lg">
+              <AvatarImage src={avatarUrl} alt={displayName} className="object-cover" />
+              <AvatarFallback className="text-2xl font-bold bg-white/20 text-white">{initials}</AvatarFallback>
+            </Avatar>
+            <div className="text-center sm:text-left flex-1">
+              <h1 className="text-2xl sm:text-3xl font-black text-white">{displayName}</h1>
+              <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 mt-2">
+                <p className="text-white/80 text-sm font-medium flex items-center justify-center sm:justify-start gap-1.5">
+                  <Mail className="w-4 h-4" />
+                  {profile.email}
+                </p>
+                {profile.phone && (
+                  <p className="text-white/80 text-sm font-medium flex items-center justify-center sm:justify-start gap-1.5">
+                    <Phone className="w-4 h-4" />
+                    {profile.phone}
+                  </p>
+                )}
+              </div>
+            </div>
+            <div className="relative">
+              <Button variant="outline" size="sm" className="flex items-center gap-2 font-bold cursor-pointer relative bg-white/10 border-white/30 text-white hover:bg-white/20" disabled={uploading}>
+                {uploading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Camera className="w-4 h-4" />}
+                {uploading ? 'Uploaden...' : 'Foto wijzigen'}
+                <input
+                  ref={fileRef}
+                  type="file"
+                  accept="image/*"
+                  onChange={handleAvatarUpload}
+                  disabled={uploading}
+                  className="absolute inset-0 w-full h-full opacity-0 cursor-pointer disabled:cursor-not-allowed"
+                />
+              </Button>
+            </div>
           </div>
           {uploadMsg && (
-            <p className={`text-sm font-semibold flex items-center gap-1.5 ${uploadMsg.type === 'success' ? 'text-green-600' : 'text-red-600'}`}>
+            <p className={`text-sm font-semibold flex items-center gap-1.5 mt-4 justify-center sm:justify-start ${uploadMsg.type === 'success' ? 'text-green-200' : 'text-red-200'}`}>
               {uploadMsg.type === 'success' ? <CheckCircle2 className="w-4 h-4" /> : <AlertCircle className="w-4 h-4" />}
               {uploadMsg.text}
             </p>
           )}
-        </Card>
+        </div>
+      </Card>
 
+      <div className="grid gap-6 md:grid-cols-3">
         {/* Info Card */}
-        <Card className="md:col-span-2">
+        <Card className="md:col-span-3">
           <CardHeader>
             <CardTitle>Persoonlijke gegevens</CardTitle>
           </CardHeader>
@@ -160,21 +186,25 @@ export default function ProfileClient({ profile }: Props) {
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="first_name">Voornaam</Label>
-                  <Input id="first_name" name="first_name" defaultValue={profile.first_name ?? ''} className="h-10" />
+                  <Input id="first_name" name="first_name" defaultValue={profile.first_name ?? ''} key={`fn-${profile.first_name}`} className="h-10" />
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="last_name">Achternaam</Label>
-                  <Input id="last_name" name="last_name" defaultValue={profile.last_name ?? ''} className="h-10" />
+                  <Input id="last_name" name="last_name" defaultValue={profile.last_name ?? ''} key={`ln-${profile.last_name}`} className="h-10" />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="email_display">E-mailadres</Label>
+                  <Input id="email_display" value={profile.email} disabled className="h-10 bg-muted" />
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="phone">Telefoon</Label>
-                  <Input id="phone" name="phone" type="tel" defaultValue={profile.phone ?? ''} className="h-10" />
+                  <Input id="phone" name="phone" type="tel" defaultValue={profile.phone ?? ''} key={`ph-${profile.phone}`} className="h-10" />
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="birth_date">Geboortedatum</Label>
                   <Input id="birth_date" name="birth_date" type="date" defaultValue={profile.birth_date ?? ''} className="h-10" />
                 </div>
-                <div className="sm:col-span-2 space-y-2">
+                <div className="space-y-2">
                   <Label htmlFor="address">Adres</Label>
                   <Input id="address" name="address" defaultValue={profile.address ?? ''} className="h-10" />
                 </div>
@@ -248,12 +278,12 @@ export default function ProfileClient({ profile }: Props) {
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 {allowedNotifications.map((item) => (
                   <label key={item.value} className="flex items-center space-x-3 cursor-pointer">
-                    <input 
-                      type="checkbox" 
+                    <input
+                      type="checkbox"
                       name="notifications"
                       value={item.value}
-                      defaultChecked={userNotifications.includes(item.value) || userNotifications.length === 0} 
-                      className="h-4 w-4 rounded border-gray-300 text-primary" 
+                      defaultChecked={userNotifications.includes(item.value) || userNotifications.length === 0}
+                      className="h-4 w-4 rounded border-gray-300 text-primary"
                     />
                     <span className="text-sm font-medium">{item.label}</span>
                   </label>

@@ -33,7 +33,7 @@ export async function updateSession(request: NextRequest) {
 
   // Define protected routes here
   const isAuthRoute = request.nextUrl.pathname.startsWith('/login') || request.nextUrl.pathname.startsWith('/register')
-  const isProtectedRoute = request.nextUrl.pathname.startsWith('/dashboard') || request.nextUrl.pathname.startsWith('/matches') || request.nextUrl.pathname.startsWith('/admin')
+  const isProtectedRoute = request.nextUrl.pathname.startsWith('/dashboard') || request.nextUrl.pathname.startsWith('/matches') || request.nextUrl.pathname.startsWith('/competitions') || request.nextUrl.pathname.startsWith('/ranking') || request.nextUrl.pathname.startsWith('/profile') || request.nextUrl.pathname.startsWith('/admin')
   const isAdminRoute = request.nextUrl.pathname.startsWith('/admin')
 
   if (isProtectedRoute && !user) {
@@ -79,6 +79,7 @@ export async function updateSession(request: NextRequest) {
 
     const isPlayerRoute =
       request.nextUrl.pathname.startsWith('/dashboard') ||
+      request.nextUrl.pathname.startsWith('/competitions') ||
       request.nextUrl.pathname.startsWith('/matches') ||
       request.nextUrl.pathname.startsWith('/ranking') ||
       request.nextUrl.pathname.startsWith('/profile')

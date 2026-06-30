@@ -57,6 +57,7 @@ export async function createCompetition(formData: FormData): Promise<ActionRespo
     const end_date = formData.get('end_date') as string
     const status = (formData.get('status') as string) || 'draft'
     const max_participants = parseInt(formData.get('max_participants') as string, 10) || 32
+    const price = parseFloat(formData.get('price') as string) || 0
 
     if (!name || !type || !season_year || !start_date || !end_date) {
       return { success: false, error: 'Alle velden zijn verplicht.' }
@@ -70,6 +71,7 @@ export async function createCompetition(formData: FormData): Promise<ActionRespo
       end_date,
       status,
       max_participants,
+      price,
       is_active: status === 'open',
     })
 
@@ -121,6 +123,7 @@ export async function updateCompetition(id: string, formData: FormData): Promise
     const end_date = formData.get('end_date') as string
     const status = formData.get('status') as string
     const max_participants = parseInt(formData.get('max_participants') as string, 10)
+    const price = parseFloat(formData.get('price') as string) || 0
 
     if (!name || !type || isNaN(season_year) || !start_date || !end_date) {
       return { success: false, error: 'Alle velden zijn verplicht.' }
@@ -128,7 +131,7 @@ export async function updateCompetition(id: string, formData: FormData): Promise
 
     const { error } = await supabase
       .from('competitions')
-      .update({ name, type, season_year, start_date, end_date, status, max_participants: isNaN(max_participants) ? null : max_participants })
+      .update({ name, type, season_year, start_date, end_date, status, max_participants: isNaN(max_participants) ? null : max_participants, price })
       .eq('id', id)
 
     if (error) throw error

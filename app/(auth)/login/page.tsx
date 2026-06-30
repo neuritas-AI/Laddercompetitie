@@ -5,7 +5,8 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import Link from 'next/link'
 import { redirect } from 'next/navigation'
-import { Trophy, AlertCircle, CheckCircle } from 'lucide-react'
+import { AlertCircle, CheckCircle } from 'lucide-react'
+import Logo from '@/components/logo'
 
 export default async function LoginPage({
   searchParams,
@@ -24,9 +25,7 @@ export default async function LoginPage({
     <Card className="w-full max-w-md shadow-xl border-0">
       <CardHeader className="text-center space-y-3 pb-6">
         <div className="flex justify-center">
-          <div className="bg-primary/10 rounded-full p-3">
-            <Trophy className="h-8 w-8 text-primary" />
-          </div>
+          <Logo size="md" />
         </div>
         <CardTitle className="text-3xl font-extrabold">Welkom terug</CardTitle>
         <CardDescription className="text-base">Meld je aan bij je TPA Ladder account</CardDescription>
@@ -55,7 +54,7 @@ export default async function LoginPage({
               type="email"
               autoComplete="email"
               required
-              placeholder="naam@voorbeeld.be"
+              placeholder="E-mailadres"
               className="h-11"
             />
           </div>
