@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useTransition } from 'react'
+import { useRouter } from 'next/navigation'
 import { MoreHorizontal, Ban, Trash2, UserCheck, Loader2 } from 'lucide-react'
 import {
   DropdownMenu,
@@ -23,13 +24,16 @@ import { Label } from '@/components/ui/label'
 import { activatePlayer, deactivatePlayer, blockPlayer, deletePlayer } from '@/app/actions/admin'
 
 export function PlayerActions({ playerId, playerName, isActive }: { playerId: string; playerName: string; isActive: boolean }) {
+  const router = useRouter()
   const [open, setOpen] = useState(false)
   const [pendingAction, setPendingAction] = useState<'activate' | 'deactivate' | 'block' | 'delete' | null>(null)
   const [reason, setReason] = useState('')
+  const [actionError, setActionError] = useState<string | null>(null)
   const [isPending, startTransition] = useTransition()
 
   function confirm(action: 'activate' | 'deactivate' | 'block' | 'delete') {
     setPendingAction(action)
+    setActionError(null)
     setOpen(true)
   }
 
@@ -37,6 +41,7 @@ export function PlayerActions({ playerId, playerName, isActive }: { playerId: st
     if (!pendingAction) return
 
     startTransition(async () => {
+      setActionError(null)
       let result
       if (pendingAction === 'activate') {
         result = await activatePlayer(playerId)
@@ -50,6 +55,9 @@ export function PlayerActions({ playerId, playerName, isActive }: { playerId: st
 
       if (result.success) {
         setOpen(false)
+        router.refresh()
+      } else {
+        setActionError(result.error ?? 'Actie is mislukt. Probeer opnieuw.')
       }
     })
   }
@@ -110,6 +118,7 @@ export function PlayerActions({ playerId, playerName, isActive }: { playerId: st
               <Input id="reason" value={reason} onChange={(e) => setReason(e.target.value)} placeholder="Bijvoorbeeld: misconduct" />
             </div>
           )}
+          {actionError && <p className="text-sm text-red-500">{actionError}</p>}
           <DialogFooter>
             <Button variant="outline" onClick={() => setOpen(false)} type="button">
               Annuleren

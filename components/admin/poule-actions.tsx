@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useTransition } from 'react'
+import { useRouter } from 'next/navigation'
 import { MoreHorizontal, Pencil, Trash2, Loader2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -24,9 +25,11 @@ import {
 import { updatePoule, deletePoule } from '@/app/actions/admin'
 
 export function PouleActions({ poule, competitions, poules }: { poule: any; competitions: any[]; poules: any[] }) {
+  const router = useRouter()
   const [open, setOpen] = useState(false)
   const [deleteOpen, setDeleteOpen] = useState(false)
   const [destinationPouleId, setDestinationPouleId] = useState<string>('')
+  const [actionError, setActionError] = useState<string | null>(null)
   const [isPending, startTransition] = useTransition()
   const [formState, setFormState] = useState({
     name: poule.name,
@@ -38,20 +41,28 @@ export function PouleActions({ poule, competitions, poules }: { poule: any; comp
 
   function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
+    setActionError(null)
     const formData = new FormData(e.currentTarget)
     startTransition(async () => {
       const result = await updatePoule(poule.id, formData)
       if (result.success) {
         setOpen(false)
+        router.refresh()
+      } else {
+        setActionError(result.error ?? 'Poule kon niet worden bijgewerkt.')
       }
     })
   }
 
   function handleDelete() {
+    setActionError(null)
     startTransition(async () => {
       const result = await deletePoule(poule.id, destinationPouleId || undefined)
       if (result.success) {
         setDeleteOpen(false)
+        router.refresh()
+      } else {
+        setActionError(result.error ?? 'Poule kon niet worden verwijderd.')
       }
     })
   }
@@ -138,6 +149,7 @@ export function PouleActions({ poule, competitions, poules }: { poule: any; comp
               </div>
             </div>
           ) : null}
+          {actionError && <div className="text-sm text-red-500">{actionError}</div>}
           <DialogFooter>
             <Button variant="outline" onClick={() => setDeleteOpen(false)} type="button">Annuleren</Button>
             <Button onClick={handleDelete} disabled={isPending || (!destinationPouleId && (poule.poule_players?.length > 0 || poule.team_poules?.length > 0))} className="font-bold text-red-600">

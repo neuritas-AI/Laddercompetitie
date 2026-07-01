@@ -678,12 +678,29 @@ export async function createAdmin(formData: FormData): Promise<AdminActionRespon
     const userPayload: any = createUserData.data?.user ?? createUserData.data
     const createUserError = createUserData.error
 
+    const formatSupabaseError = (error: any) => {
+      if (!error) return 'Gebruiker kon niet worden aangemaakt.'
+      if (typeof error === 'string') return error
+      const details = [
+        error.message,
+        error.msg,
+        error.details,
+        error.hint,
+        error.code,
+        error.status,
+      ].filter(Boolean)
+      if (details.length) return details.join(' | ')
+      const json = JSON.stringify(error, Object.getOwnPropertyNames(error))
+      if (!json || json === '{}' || json === '[]') return 'Gebruiker kon niet worden aangemaakt.'
+      return json
+    }
+
     const duplicateErrorMessage = (message?: string) => {
       return !!message && /already|duplicate|registered|exists/i.test(message)
     }
 
     if (createUserError) {
-      const errMsg = createUserError.message || 'Gebruiker kon niet worden aangemaakt.'
+      const errMsg = formatSupabaseError(createUserError)
       if (duplicateErrorMessage(errMsg)) {
         const existingUser = await adminDb.from('auth.users').select('id').eq('email', emailLower).maybeSingle()
         const userId = existingUser.data?.id
@@ -742,8 +759,11 @@ export async function createAdmin(formData: FormData): Promise<AdminActionRespon
     return { success: true }
   } catch (error: any) {
     console.error('createAdmin error:', error)
-    const msg = error?.message || JSON.stringify(error)
-    return { success: false, error: msg || 'Onbekende fout' }
+    const msg = typeof error === 'string'
+      ? error
+      : error?.message || error?.toString?.() || JSON.stringify(error)
+    const normalized = msg === '{}' || msg === '[]' ? 'Onbekende fout' : msg
+    return { success: false, error: normalized || 'Onbekende fout' }
   }
 }
 

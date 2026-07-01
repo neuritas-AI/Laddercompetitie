@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useTransition } from 'react'
+import { useRouter } from 'next/navigation'
 import { ShieldAlert, Loader2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -9,6 +10,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, Dialog
 import { createAdmin } from '@/app/actions/admin'
 
 export default function AddAdminDialog() {
+  const router = useRouter()
   const [open, setOpen] = useState(false)
   const [isPending, startTransition] = useTransition()
   const [error, setError] = useState<string | null>(null)
@@ -41,12 +43,14 @@ export default function AddAdminDialog() {
       const res = await createAdmin(formData)
       if (res.success) {
         setSuccessMessage('Administrator succesvol aangemaakt. De nieuwe beheerder kan nu inloggen.')
+        router.refresh()
         setTimeout(() => {
           setOpen(false)
           setSuccessMessage(null)
         }, 1500)
       } else {
-        setError(res.error ?? 'Er is een fout opgetreden.')
+        const formatted = typeof res.error === 'string' ? res.error : JSON.stringify(res.error)
+        setError(!formatted || formatted === '{}' || formatted === '[]' ? 'Er is een fout opgetreden bij het aanmaken van de administrator.' : formatted)
       }
     })
   }
