@@ -564,57 +564,86 @@ export async function createAdmin(formData: FormData): Promise<AdminActionRespon
     const adminDb = getAdminClient()
 
     const name = formData.get('name') as string
-    const email = formData.get('email') as string
+    const email = (formData.get('email') as string)?.trim().toLowerCase()
+    const password = formData.get('password') as string
 
-    if (!name || !email) {
+    if (!name || !email || !password) {
       return { success: false, error: 'Alle velden zijn verplicht.' }
+    }
+
+    if (password.length < 8) {
+      return { success: false, error: 'Wachtwoord moet minstens 8 tekens bevatten.' }
     }
 
     const [first_name, ...lastNameParts] = name.trim().split(' ')
     const last_name = lastNameParts.join(' ')
 
-    const tempPassword = Math.random().toString(36).slice(-10) + 'A1!'
-    const appUrl = process.env.NEXT_PUBLIC_APP_URL || process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
+    const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY!
 
-    const { data: inviteData, error: inviteError } = await adminDb.auth.admin.inviteUserByEmail(email, {
-      redirectTo: `${appUrl}/login`,
+    const createUserRes = await fetch(`${supabaseUrl}/auth/v1/admin/users`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'apikey': serviceRoleKey,
+        'Authorization': `Bearer ${serviceRoleKey}`,
+      },
+      body: JSON.stringify({
+        email,
+        password,
+        email_confirm: true,
+        user_metadata: {
+          first_name,
+          last_name,
+        },
+      }),
     })
 
-    if (inviteError) {
-      const errMsg = inviteError.message || 'Uitnodiging kon niet worden verstuurd.'
+    const createUserData = await createUserRes.json()
+    if (!createUserRes.ok) {
+      const errMsg = createUserData?.message || createUserData?.msg || 'Gebruiker kon niet worden aangemaakt.'
       if (errMsg.toLowerCase().includes('already')) {
+        const existingUser = await adminDb.from('auth.users').select('id').eq('email', email).maybeSingle()
+        const userId = existingUser.data?.id
+        if (!userId) {
+          throw new Error('Deze gebruiker bestaat al, maar is niet in de database terug te vinden.')
+        }
+
+        const { data: adminRole } = await adminDb.from('roles').select('id').eq('name', 'admin').maybeSingle()
+        if (adminRole?.id) {
+          await adminDb.from('user_roles').upsert({ user_id: userId, role_id: adminRole.id }, { onConflict: 'user_id,role_id' })
+        }
+
         const { error: updateError } = await adminDb
           .from('profiles')
-          .update({ role: 'admin', is_active: true, account_status: 'active', updated_at: new Date().toISOString() })
-          .eq('email', email.toLowerCase().trim())
+          .upsert({
+            id: userId,
+            email,
+            role: 'admin',
+            is_active: true,
+            account_status: 'active',
+            updated_at: new Date().toISOString(),
+          })
         if (updateError) throw updateError
 
         revalidatePath('/admin/administrators')
-        return { success: true, inviteSent: true }
+        return { success: true }
       }
-
-      const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
-      const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY!
-      const createUserRes = await fetch(`${supabaseUrl}/auth/v1/admin/users`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'apikey': serviceRoleKey,
-          'Authorization': `Bearer ${serviceRoleKey}`,
-        },
-        body: JSON.stringify({ email, password: tempPassword, email_confirm: true }),
-      })
-      const createUserData = await createUserRes.json()
-      if (!createUserRes.ok) throw new Error(createUserData?.message || createUserData?.msg || 'Gebruiker kon niet worden aangemaakt.')
+      throw new Error(errMsg)
     }
 
-    const userId = inviteData?.user?.id || (await adminDb.from('profiles').select('id').eq('email', email.toLowerCase().trim()).maybeSingle()).data?.id
-    if (!userId) {
+    const newUserId: string = createUserData.id
+    if (!newUserId) {
       return { success: false, error: 'Geen gebruiker ID ontvangen van Supabase.' }
     }
 
+    const { data: adminRole } = await adminDb.from('roles').select('id').eq('name', 'admin').maybeSingle()
+    if (adminRole?.id) {
+      await adminDb.from('user_roles').upsert({ user_id: newUserId, role_id: adminRole.id }, { onConflict: 'user_id,role_id' })
+    }
+
     const { error: profileError } = await adminDb.from('profiles').upsert({
-      id: userId,
+      id: newUserId,
       first_name,
       last_name,
       email,
@@ -626,13 +655,8 @@ export async function createAdmin(formData: FormData): Promise<AdminActionRespon
     })
     if (profileError) throw profileError
 
-    const { data: adminRole } = await adminDb.from('roles').select('id').eq('name', 'admin').maybeSingle()
-    if (adminRole?.id) {
-      await adminDb.from('user_roles').upsert({ user_id: userId, role_id: adminRole.id }, { onConflict: 'user_id,role_id' })
-    }
-
     revalidatePath('/admin/administrators')
-    return { success: true, tempPassword, inviteSent: !inviteError }
+    return { success: true }
   } catch (error: any) {
     console.error('createAdmin error:', error)
     const msg = error?.message || JSON.stringify(error)
