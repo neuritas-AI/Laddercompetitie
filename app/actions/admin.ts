@@ -9,6 +9,11 @@ export type ActionResponse = {
   error?: string
 }
 
+export type AdminActionResponse = ActionResponse & {
+  tempPassword?: string
+  inviteSent?: boolean
+}
+
 function getAdminClient() {
   return createSupabaseClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -183,7 +188,7 @@ export async function createPoule(formData: FormData): Promise<ActionResponse> {
       return { success: false, error: 'Alle velden zijn verplicht.' }
     }
 
-    const { error } = await supabase.from('poules').insert({ name, level, competition_id })
+    const { error } = await supabase.from('poules').insert({ name, level, competition_id, is_active: true })
 
     if (error) throw error
 
@@ -193,6 +198,180 @@ export async function createPoule(formData: FormData): Promise<ActionResponse> {
     console.error('createPoule error:', error)
     const msg = error?.message || JSON.stringify(error)
     return { success: false, error: msg || 'Onbekende fout' }
+  }
+}
+
+export async function updatePoule(pouleId: string, formData: FormData): Promise<ActionResponse> {
+  try {
+    const { supabase } = await ensureAdmin()
+
+    const name = formData.get('name') as string
+    const level = parseInt(formData.get('level') as string, 10)
+    const competition_id = formData.get('competition_id') as string
+
+    if (!name || isNaN(level) || !competition_id) {
+      return { success: false, error: 'Alle velden zijn verplicht.' }
+    }
+
+    const { error } = await supabase
+      .from('poules')
+      .update({ name, level, competition_id, updated_at: new Date().toISOString() })
+      .eq('id', pouleId)
+
+    if (error) throw error
+
+    revalidatePath('/admin/poules')
+    return { success: true }
+  } catch (error: any) {
+    console.error('updatePoule error:', error)
+    return { success: false, error: error?.message || 'Onbekende fout' }
+  }
+}
+
+export async function deletePoule(pouleId: string): Promise<ActionResponse> {
+  try {
+    const { supabase } = await ensureAdmin()
+
+    const { error } = await supabase
+      .from('poules')
+      .update({ is_active: false, deleted_at: new Date().toISOString() })
+      .eq('id', pouleId)
+
+    if (error) throw error
+
+    revalidatePath('/admin/poules')
+    return { success: true }
+  } catch (error: any) {
+    console.error('deletePoule error:', error)
+    return { success: false, error: error?.message || 'Onbekende fout' }
+  }
+}
+
+export async function generatePouleGroups(formData: FormData): Promise<ActionResponse> {
+  try {
+    const { supabase } = await ensureAdmin()
+
+    const competitionId = formData.get('competition_id') as string
+    const playersPerPoule = parseInt(formData.get('players_per_poule') as string, 10)
+    const strategy = (formData.get('strategy') as string) || 'random'
+
+    if (!competitionId || !playersPerPoule || playersPerPoule <= 0) {
+      return { success: false, error: 'Kies een competitie en een poulegrootte.' }
+    }
+
+    const { data: registrations, error: registrationError } = await supabase
+      .from('competition_registrations')
+      .select('player_id')
+      .eq('competition_id', competitionId)
+
+    if (registrationError) throw registrationError
+
+    const playerIds = (registrations ?? []).map((item: any) => item.player_id).filter(Boolean)
+    if (playerIds.length === 0) {
+      return { success: false, error: 'Er zijn nog geen spelers ingeschreven voor deze competitie.' }
+    }
+
+    const { data: players, error: playersError } = await supabase
+      .from('profiles')
+      .select('id, first_name, last_name, created_at')
+      .in('id', playerIds)
+      .eq('is_active', true)
+      .neq('role', 'admin')
+
+    if (playersError) throw playersError
+
+    const sortedPlayers = [...(players ?? [])].sort((a: any, b: any) => {
+      if (strategy === 'ranking') {
+        return (a.created_at || '').localeCompare(b.created_at || '')
+      }
+      if (strategy === 'last_season') {
+        return (a.created_at || '').localeCompare(b.created_at || '')
+      }
+      if (strategy === 'manual') {
+        return (a.created_at || '').localeCompare(b.created_at || '')
+      }
+      return Math.random() - 0.5
+    })
+
+    const groups: any[][] = []
+    for (let index = 0; index < sortedPlayers.length; index += playersPerPoule) {
+      groups.push(sortedPlayers.slice(index, index + playersPerPoule))
+    }
+
+    if (groups.length === 0) {
+      return { success: false, error: 'Er konden geen poules worden aangemaakt.' }
+    }
+
+    for (const [groupIndex, group] of groups.entries()) {
+      const { data: createdPoule, error: pouleError } = await supabase
+        .from('poules')
+        .insert({
+          name: `Poule ${groupIndex + 1}`,
+          competition_id: competitionId,
+          level: groupIndex + 1,
+          is_active: true,
+        })
+        .select('id')
+        .single()
+
+      if (pouleError || !createdPoule) continue
+
+      const rows = group.map((player: any, positionIndex: number) => ({
+        poule_id: createdPoule.id,
+        player_id: player.id,
+        position: positionIndex + 1,
+      }))
+
+      await supabase.from('poule_players').insert(rows)
+    }
+
+    revalidatePath('/admin/poules')
+    return { success: true }
+  } catch (error: any) {
+    console.error('generatePouleGroups error:', error)
+    return { success: false, error: error?.message || 'Onbekende fout' }
+  }
+}
+
+export async function movePlayerToPoule(playerId: string, fromPouleId: string, toPouleId: string): Promise<ActionResponse> {
+  try {
+    const { supabase } = await ensureAdmin()
+
+    if (!playerId || !fromPouleId || !toPouleId || fromPouleId === toPouleId) {
+      return { success: false, error: 'Selectie is ongeldig.' }
+    }
+
+    const { data: existingEntries, error: lookupError } = await supabase
+      .from('poule_players')
+      .select('position')
+      .eq('poule_id', toPouleId)
+      .order('position', { ascending: true })
+
+    if (lookupError) throw lookupError
+
+    const nextPosition = (existingEntries?.length ?? 0) + 1
+
+    const { error: deleteError } = await supabase
+      .from('poule_players')
+      .delete()
+      .eq('player_id', playerId)
+      .eq('poule_id', fromPouleId)
+
+    if (deleteError) throw deleteError
+
+    const { error: insertError } = await supabase.from('poule_players').insert({
+      poule_id: toPouleId,
+      player_id: playerId,
+      position: nextPosition,
+    })
+
+    if (insertError) throw insertError
+
+    revalidatePath('/admin/poules')
+    return { success: true }
+  } catch (error: any) {
+    console.error('movePlayerToPoule error:', error)
+    return { success: false, error: error?.message || 'Onbekende fout' }
   }
 }
 
@@ -242,6 +421,7 @@ export async function createPlayer(formData: FormData): Promise<ActionResponse> 
       email,
       role: 'player',
       is_active: true,
+      account_status: 'active',
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
     })
@@ -253,6 +433,71 @@ export async function createPlayer(formData: FormData): Promise<ActionResponse> 
     console.error('createPlayer error:', error)
     const msg = error?.message || JSON.stringify(error)
     return { success: false, error: msg || 'Onbekende fout' }
+  }
+}
+
+export async function deactivatePlayer(playerId: string): Promise<ActionResponse> {
+  try {
+    const { supabase } = await ensureAdmin()
+    const { error } = await supabase
+      .from('profiles')
+      .update({ is_active: false, account_status: 'inactive', updated_at: new Date().toISOString() })
+      .eq('id', playerId)
+
+    if (error) throw error
+
+    revalidatePath('/admin/players')
+    return { success: true }
+  } catch (error: any) {
+    console.error('deactivatePlayer error:', error)
+    return { success: false, error: error?.message || 'Onbekende fout' }
+  }
+}
+
+export async function blockPlayer(playerId: string, reason?: string): Promise<ActionResponse> {
+  try {
+    const { supabase } = await ensureAdmin()
+    const { error } = await supabase
+      .from('profiles')
+      .update({
+        is_active: false,
+        account_status: 'blocked',
+        blocked_reason: reason || 'Geblokkeerd door beheerder',
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', playerId)
+
+    if (error) throw error
+
+    revalidatePath('/admin/players')
+    return { success: true }
+  } catch (error: any) {
+    console.error('blockPlayer error:', error)
+    return { success: false, error: error?.message || 'Onbekende fout' }
+  }
+}
+
+export async function deletePlayer(playerId: string): Promise<ActionResponse> {
+  try {
+    const { supabase } = await ensureAdmin()
+    const { error } = await supabase
+      .from('profiles')
+      .update({
+        is_active: false,
+        account_status: 'deleted',
+        deleted_at: new Date().toISOString(),
+        blocked_reason: 'Verwijderd door beheerder',
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', playerId)
+
+    if (error) throw error
+
+    revalidatePath('/admin/players')
+    return { success: true }
+  } catch (error: any) {
+    console.error('deletePlayer error:', error)
+    return { success: false, error: error?.message || 'Onbekende fout' }
   }
 }
 
@@ -313,7 +558,7 @@ export async function createTeam(formData: FormData): Promise<ActionResponse> {
 
 // ─── ADMINISTRATORS ───────────────────────────────────────────────────────────
 
-export async function createAdmin(formData: FormData): Promise<ActionResponse & { tempPassword?: string }> {
+export async function createAdmin(formData: FormData): Promise<AdminActionResponse> {
   try {
     await ensureAdmin()
     const adminDb = getAdminClient()
@@ -324,62 +569,70 @@ export async function createAdmin(formData: FormData): Promise<ActionResponse & 
     if (!name || !email) {
       return { success: false, error: 'Alle velden zijn verplicht.' }
     }
-    
+
     const [first_name, ...lastNameParts] = name.trim().split(' ')
     const last_name = lastNameParts.join(' ')
-    
-    // Generate temporary password
+
     const tempPassword = Math.random().toString(36).slice(-10) + 'A1!'
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL || process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'
 
-    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
-    const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY!
-
-    const createUserRes = await fetch(`${supabaseUrl}/auth/v1/admin/users`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'apikey': serviceRoleKey,
-        'Authorization': `Bearer ${serviceRoleKey}`,
-      },
-      body: JSON.stringify({ email, password: tempPassword, email_confirm: true }),
+    const { data: inviteData, error: inviteError } = await adminDb.auth.admin.inviteUserByEmail(email, {
+      redirectTo: `${appUrl}/login`,
     })
 
-    const createUserData = await createUserRes.json()
-
-    if (!createUserRes.ok) {
-      const errMsg = createUserData?.message || createUserData?.msg || JSON.stringify(createUserData)
-      // Check if user already exists
-      if (errMsg.toLowerCase().includes('already registered')) {
-        // Just make them an admin
+    if (inviteError) {
+      const errMsg = inviteError.message || 'Uitnodiging kon niet worden verstuurd.'
+      if (errMsg.toLowerCase().includes('already')) {
         const { error: updateError } = await adminDb
           .from('profiles')
-          .update({ role: 'admin' })
+          .update({ role: 'admin', is_active: true, account_status: 'active', updated_at: new Date().toISOString() })
           .eq('email', email.toLowerCase().trim())
         if (updateError) throw updateError
-        
+
         revalidatePath('/admin/administrators')
-        return { success: true }
+        return { success: true, inviteSent: true }
       }
-      throw new Error(errMsg)
+
+      const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
+      const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY!
+      const createUserRes = await fetch(`${supabaseUrl}/auth/v1/admin/users`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'apikey': serviceRoleKey,
+          'Authorization': `Bearer ${serviceRoleKey}`,
+        },
+        body: JSON.stringify({ email, password: tempPassword, email_confirm: true }),
+      })
+      const createUserData = await createUserRes.json()
+      if (!createUserRes.ok) throw new Error(createUserData?.message || createUserData?.msg || 'Gebruiker kon niet worden aangemaakt.')
     }
 
-    const newUserId: string = createUserData.id
-    if (!newUserId) throw new Error('Geen gebruiker ID ontvangen van Supabase.')
+    const userId = inviteData?.user?.id || (await adminDb.from('profiles').select('id').eq('email', email.toLowerCase().trim()).maybeSingle()).data?.id
+    if (!userId) {
+      return { success: false, error: 'Geen gebruiker ID ontvangen van Supabase.' }
+    }
 
     const { error: profileError } = await adminDb.from('profiles').upsert({
-      id: newUserId,
+      id: userId,
       first_name,
       last_name,
       email,
       role: 'admin',
       is_active: true,
+      account_status: 'active',
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
     })
     if (profileError) throw profileError
 
+    const { data: adminRole } = await adminDb.from('roles').select('id').eq('name', 'admin').maybeSingle()
+    if (adminRole?.id) {
+      await adminDb.from('user_roles').upsert({ user_id: userId, role_id: adminRole.id }, { onConflict: 'user_id,role_id' })
+    }
+
     revalidatePath('/admin/administrators')
-    return { success: true, tempPassword }
+    return { success: true, tempPassword, inviteSent: !inviteError }
   } catch (error: any) {
     console.error('createAdmin error:', error)
     const msg = error?.message || JSON.stringify(error)

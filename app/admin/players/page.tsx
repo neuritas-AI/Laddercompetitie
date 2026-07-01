@@ -1,8 +1,8 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Button } from '@/components/ui/button'
-import { MoreVertical, Ban, CheckCircle, Shield, Plus } from 'lucide-react'
+import { Ban, CheckCircle, Shield } from 'lucide-react'
 import { createClient } from '@/utils/supabase/server'
 import AddPlayerDialog from '@/components/admin/add-player-dialog'
+import { PlayerActions } from '@/components/admin/player-actions'
 
 export default async function AdminPlayersPage() {
   const supabase = await createClient()
@@ -71,7 +71,7 @@ export default async function AdminPlayersPage() {
                         </span>
                       </div>
                       <div className="flex items-center gap-2 ml-auto sm:ml-0">
-                        <button className="p-2 text-muted-foreground hover:text-foreground"><MoreVertical className="w-5 h-5" /></button>
+                        <PlayerActions playerId={player.id} playerName={name} />
                       </div>
                     </div>
                   </div>

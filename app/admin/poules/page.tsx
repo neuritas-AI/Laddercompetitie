@@ -1,8 +1,10 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Button } from '@/components/ui/button'
-import { Plus, Settings2, GripVertical } from 'lucide-react'
+import { Settings2, GripVertical } from 'lucide-react'
 import { createClient } from '@/utils/supabase/server'
 import AddPouleDialog from '@/components/admin/add-poule-dialog'
+import GeneratePoulesDialog from '@/components/admin/generate-poules-dialog'
+import { PouleActions } from '@/components/admin/poule-actions'
+import MovePlayerDialog from '@/components/admin/move-player-dialog'
 
 export default async function AdminPoulesPage() {
   const supabase = await createClient()
@@ -37,7 +39,10 @@ export default async function AdminPoulesPage() {
           <h1 className="text-3xl font-bold tracking-tight text-foreground">Poulebeheer</h1>
           <p className="text-muted-foreground">Overzicht van alle poules en hun spelers.</p>
         </div>
-        <AddPouleDialog competitions={competitions ?? []} />
+        <div className="flex flex-wrap gap-2">
+          <GeneratePoulesDialog competitions={competitions ?? []} />
+          <AddPouleDialog competitions={competitions ?? []} />
+        </div>
       </div>
 
       {poules && poules.length > 0 ? (
@@ -76,6 +81,7 @@ export default async function AdminPoulesPage() {
                             }
                           </div>
                           <div className="font-semibold text-sm flex-1 truncate">{name}</div>
+                          <MovePlayerDialog player={{ id: pp.player_id, name }} poules={(poules ?? []).filter((item: any) => item.id !== poule.id)} currentPouleId={poule.id} />
                         </div>
                       )
                     }) : (
