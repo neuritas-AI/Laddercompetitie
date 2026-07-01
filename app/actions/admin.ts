@@ -560,6 +560,7 @@ export async function blockPlayer(playerId: string, reason?: string): Promise<Ac
 export async function deletePlayer(playerId: string): Promise<ActionResponse> {
   try {
     const { supabase } = await ensureAdmin()
+    const adminDb = getAdminClient()
 
     // Remove references that are not cascade-safe before deleting the auth user.
     const cleanupSteps = [
@@ -572,11 +573,7 @@ export async function deletePlayer(playerId: string): Promise<ActionResponse> {
       if (error) throw error
     }
 
-    const { error: deleteUserError } = await supabase
-      .from('auth.users')
-      .delete()
-      .eq('id', playerId)
-
+    const { error: deleteUserError } = await adminDb.auth.admin.deleteUser(playerId)
     if (deleteUserError) throw deleteUserError
 
     revalidatePath('/admin/players')
