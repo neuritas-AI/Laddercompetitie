@@ -17,6 +17,7 @@ export default async function AdminPoulesPage() {
       name,
       level,
       competition_id,
+      is_active,
       competitions(name, type),
       poule_players(
         position,
@@ -25,6 +26,7 @@ export default async function AdminPoulesPage() {
       ),
       team_poules(id)
     `)
+    .eq('is_active', true)
     .order('level', { ascending: true })
 
   // Fetch competitions for the add poule dialog
