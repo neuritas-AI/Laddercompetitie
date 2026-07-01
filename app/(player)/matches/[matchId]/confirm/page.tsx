@@ -49,11 +49,6 @@ export default async function MatchConfirmPage({ params }: Params) {
     notFound()
   }
 
-  const isPlayer1 = match.player1_id === user.id
-  const opponent = isPlayer1 ? player2 : player1
-  const opponentName = opponent ? `${opponent.first_name ?? ''} ${opponent.last_name ?? ''}`.trim() : 'Tegenstander'
-  const scoreLine = `${score.p1_score} – ${score.p2_score}`
-
   if (!score) {
     return (
       <div className="min-h-[60vh] flex items-center justify-center p-8">
@@ -66,8 +61,8 @@ export default async function MatchConfirmPage({ params }: Params) {
   }
 
   const isPlayer1 = match.player1_id === user.id
-  const opponent = isPlayer1 ? match.player2 : match.player1
-  const opponentName = opponent ? `${opponent.first_name ?? ''} ${opponent.last_name ?? ''}`.trim() || 'Tegenstander' : 'Tegenstander'
+  const opponent = isPlayer1 ? player2 : player1
+  const opponentName = opponent ? `${opponent.first_name ?? ''} ${opponent.last_name ?? ''}`.trim() : 'Tegenstander'
   const scoreLine = `${score.p1_score} – ${score.p2_score}`
 
   return (
