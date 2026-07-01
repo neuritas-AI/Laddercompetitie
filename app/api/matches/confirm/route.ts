@@ -43,15 +43,16 @@ export async function POST(request: NextRequest) {
         await supabase.from('matches').update({ status: 'confirmed' }).eq('id', match.id)
 
         const loserId = match.player1_id === score.winner_id ? match.player2_id : match.player1_id
+        const raw = (supabase as any).raw?.bind(supabase)
 
         await Promise.all([
           supabase.from('poule_players').update({
-            matches_played: supabase.raw('matches_played + 1'),
-            matches_won: supabase.raw('matches_won + 1'),
+            matches_played: raw ? raw('matches_played + 1') : undefined,
+            matches_won: raw ? raw('matches_won + 1') : undefined,
           }).eq('poule_id', match.poule_id).eq('player_id', score.winner_id),
           supabase.from('poule_players').update({
-            matches_played: supabase.raw('matches_played + 1'),
-            matches_lost: supabase.raw('matches_lost + 1'),
+            matches_played: raw ? raw('matches_played + 1') : undefined,
+            matches_lost: raw ? raw('matches_lost + 1') : undefined,
           }).eq('poule_id', match.poule_id).eq('player_id', loserId),
         ])
 
