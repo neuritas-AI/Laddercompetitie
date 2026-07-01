@@ -7,8 +7,8 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
-import { Camera, Lock, Bell, Loader2, CheckCircle2, AlertCircle, Mail, Phone } from 'lucide-react'
-import { updateProfile, updatePassword, uploadAvatar, updateNotificationPreferences } from '@/app/actions/profile'
+import { Camera, Lock, Bell, Loader2, CheckCircle2, AlertCircle, Mail, Phone, Trash2 } from 'lucide-react'
+import { updateProfile, updatePassword, uploadAvatar, updateNotificationPreferences, removeAvatar } from '@/app/actions/profile'
 import { getDisplayName, getInitials } from '@/lib/profile'
 
 interface Profile {
@@ -16,7 +16,6 @@ interface Profile {
   last_name: string | null
   email: string
   phone: string | null
-  address: string | null
   birth_date: string | null
   avatar_url: string | null
   share_phone?: boolean | null
@@ -44,7 +43,7 @@ export default function ProfileClient({ profile: initialProfile }: Props) {
     setAvatarUrl(initialProfile.avatar_url ?? '')
   }, [initialProfile])
 
-  const displayName = getDisplayName(profile)
+  const displayName = getDisplayName(profile) || profile.email || 'Profiel'
   const initials = getInitials(profile)
 
   const handleAvatarUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -66,6 +65,26 @@ export default function ProfileClient({ profile: initialProfile }: Props) {
       setUploadMsg({ type: 'error', text: 'Er is een fout opgetreden.' })
     } finally {
       setUploading(false)
+      if (fileRef.current) fileRef.current.value = ''
+    }
+  }
+
+  const handleAvatarRemove = async () => {
+    setUploading(true)
+    setUploadMsg(null)
+    try {
+      const result = await removeAvatar()
+      if (result.success) {
+        setAvatarUrl('')
+        setUploadMsg({ type: 'success', text: 'Profielfoto verwijderd.' })
+        router.refresh()
+      } else {
+        setUploadMsg({ type: 'error', text: result.error ?? 'Verwijderen mislukt.' })
+      }
+    } catch {
+      setUploadMsg({ type: 'error', text: 'Er is een fout opgetreden.' })
+    } finally {
+      setUploading(false)
     }
   }
 
@@ -79,7 +98,6 @@ export default function ProfileClient({ profile: initialProfile }: Props) {
           first_name: (formData.get('first_name') as string) || null,
           last_name: (formData.get('last_name') as string) || null,
           phone: (formData.get('phone') as string) || null,
-          address: (formData.get('address') as string) || null,
           birth_date: (formData.get('birth_date') as string) || null,
           share_phone: formData.get('share_phone') === 'on',
         }
@@ -128,12 +146,11 @@ export default function ProfileClient({ profile: initialProfile }: Props) {
 
   return (
     <div className="space-y-6">
-      {/* Profile Header */}
       <Card className="overflow-hidden border-0 shadow-soft">
         <div className="bg-mockup-red px-6 py-8">
           <div className="flex flex-col sm:flex-row items-center gap-6">
             <Avatar className="h-24 w-24 border-4 border-white shadow-lg">
-              <AvatarImage src={avatarUrl} alt={displayName} className="object-cover" />
+              <AvatarImage src={avatarUrl || undefined} alt={displayName} className="object-cover" />
               <AvatarFallback className="text-2xl font-bold bg-white/20 text-white">{initials}</AvatarFallback>
             </Avatar>
             <div className="text-center sm:text-left flex-1">
@@ -151,19 +168,27 @@ export default function ProfileClient({ profile: initialProfile }: Props) {
                 )}
               </div>
             </div>
-            <div className="relative">
-              <Button variant="outline" size="sm" className="flex items-center gap-2 font-bold cursor-pointer relative bg-white/10 border-white/30 text-white hover:bg-white/20" disabled={uploading}>
-                {uploading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Camera className="w-4 h-4" />}
-                {uploading ? 'Uploaden...' : 'Foto wijzigen'}
-                <input
-                  ref={fileRef}
-                  type="file"
-                  accept="image/*"
-                  onChange={handleAvatarUpload}
-                  disabled={uploading}
-                  className="absolute inset-0 w-full h-full opacity-0 cursor-pointer disabled:cursor-not-allowed"
-                />
-              </Button>
+            <div className="flex flex-wrap items-center gap-2">
+              <div className="relative">
+                <Button variant="outline" size="sm" className="flex items-center gap-2 font-bold cursor-pointer relative bg-white/10 border-white/30 text-white hover:bg-white/20" disabled={uploading}>
+                  {uploading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Camera className="w-4 h-4" />}
+                  {uploading ? 'Uploaden...' : 'Foto wijzigen'}
+                  <input
+                    ref={fileRef}
+                    type="file"
+                    accept="image/*"
+                    onChange={handleAvatarUpload}
+                    disabled={uploading}
+                    className="absolute inset-0 w-full h-full opacity-0 cursor-pointer disabled:cursor-not-allowed"
+                  />
+                </Button>
+              </div>
+              {avatarUrl && (
+                <Button type="button" variant="outline" size="sm" onClick={handleAvatarRemove} disabled={uploading} className="flex items-center gap-2 font-bold bg-white/10 border-white/30 text-white hover:bg-white/20">
+                  {uploading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
+                  Verwijderen
+                </Button>
+              )}
             </div>
           </div>
           {uploadMsg && (
@@ -176,7 +201,6 @@ export default function ProfileClient({ profile: initialProfile }: Props) {
       </Card>
 
       <div className="grid gap-6 md:grid-cols-3">
-        {/* Info Card */}
         <Card className="md:col-span-3">
           <CardHeader>
             <CardTitle>Persoonlijke gegevens</CardTitle>
@@ -204,10 +228,6 @@ export default function ProfileClient({ profile: initialProfile }: Props) {
                   <Label htmlFor="birth_date">Geboortedatum</Label>
                   <Input id="birth_date" name="birth_date" type="date" defaultValue={profile.birth_date ?? ''} className="h-10" />
                 </div>
-                <div className="space-y-2">
-                  <Label htmlFor="address">Adres</Label>
-                  <Input id="address" name="address" defaultValue={profile.address ?? ''} className="h-10" />
-                </div>
                 <div className="sm:col-span-2 mt-2">
                   <label className="flex items-center space-x-3 cursor-pointer">
                     <input type="checkbox" name="share_phone" defaultChecked={profile.share_phone ?? false} className="h-4 w-4 rounded border-gray-300 text-primary" />
@@ -230,7 +250,6 @@ export default function ProfileClient({ profile: initialProfile }: Props) {
           </CardContent>
         </Card>
 
-        {/* Password Card */}
         <Card className="md:col-span-3">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
@@ -265,7 +284,6 @@ export default function ProfileClient({ profile: initialProfile }: Props) {
           </CardContent>
         </Card>
 
-        {/* Notification prefs */}
         <Card className="md:col-span-3">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">

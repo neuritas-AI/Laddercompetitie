@@ -14,7 +14,7 @@ export default async function PlayerLayout({ children }: { children: React.React
       .from('profiles')
       .select('first_name, last_name, avatar_url, email')
       .eq('id', user.id)
-      .single()
+      .maybeSingle()
     profile = data
 
     const { data: pp } = await supabase
@@ -25,7 +25,7 @@ export default async function PlayerLayout({ children }: { children: React.React
     pouleInfo = pp
   }
 
-  const displayName = profile ? getDisplayName(profile) : 'Speler'
+  const displayName = getDisplayName(profile ?? { email: user?.email ?? '' }) || user?.email?.split('@')[0] || 'Profiel'
   const pouleLabel = (pouleInfo?.poules as any)?.name ?? null
 
   let notifications: any[] = []

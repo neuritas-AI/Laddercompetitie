@@ -25,7 +25,7 @@ async function ensureAdmin() {
 
   if (!user) throw new Error('Not logged in')
 
-  const { data } = await supabase.from('profiles').select('role').eq('id', user.id).single()
+  const { data } = await supabase.from('profiles').select('role').eq('id', user.id).maybeSingle()
 
   const emailIsAdmin = ADMIN_EMAILS.includes(user.email?.toLowerCase() ?? '')
   const dbIsAdmin = data?.role === 'admin'
@@ -39,6 +39,10 @@ async function ensureAdmin() {
   // Auto-fix the role in the database if needed
   if (emailIsAdmin && !dbIsAdmin) {
     await adminSupabase.from('profiles').update({ role: 'admin' }).eq('id', user.id)
+    const { data: adminRole } = await adminSupabase.from('roles').select('id').eq('name', 'admin').maybeSingle()
+    if (adminRole?.id) {
+      await adminSupabase.from('user_roles').upsert({ user_id: user.id, role_id: adminRole.id }, { onConflict: 'user_id,role_id' })
+    }
   }
 
   return { supabase: adminSupabase, user }
@@ -238,8 +242,6 @@ export async function createPlayer(formData: FormData): Promise<ActionResponse> 
       email,
       role: 'player',
       is_active: true,
-      is_player: true,
-      is_admin: false,
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
     })
@@ -351,7 +353,7 @@ export async function createAdmin(formData: FormData): Promise<ActionResponse & 
         // Just make them an admin
         const { error: updateError } = await adminDb
           .from('profiles')
-          .update({ is_admin: true })
+          .update({ role: 'admin' })
           .eq('email', email.toLowerCase().trim())
         if (updateError) throw updateError
         
@@ -371,8 +373,6 @@ export async function createAdmin(formData: FormData): Promise<ActionResponse & 
       email,
       role: 'admin',
       is_active: true,
-      is_admin: true,
-      is_player: false, // NOT a player
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
     })
@@ -398,7 +398,7 @@ export async function demoteFromAdmin(targetUserId: string): Promise<ActionRespo
 
     const { error } = await adminDb
       .from('profiles')
-      .update({ is_admin: false, role: 'player' })
+      .update({ role: 'player' })
       .eq('id', targetUserId)
 
     if (error) throw error

@@ -16,6 +16,15 @@ export default async function RankingPage() {
   const myPouleLabel = (myPoulePlayer?.poules as any)?.name ?? null
   const myPosition = myPoulePlayer?.position ?? null
 
+  const { data: registrations } = await supabase
+    .from('competition_registrations')
+    .select('id')
+    .eq('player_id', user!.id)
+    .neq('status', 'cancelled')
+    .limit(1)
+
+  const hasCompetition = (registrations?.length ?? 0) > 0
+
   // Fetch all players in same poule
   let rankedPlayers: any[] = []
   let pouleSize = 0
@@ -41,7 +50,7 @@ export default async function RankingPage() {
       <div className="relative bg-mockup-red rounded-[1.5rem] p-8 md:p-10 text-white shadow-soft-red overflow-hidden flex items-center justify-between">
         <div className="relative z-10">
           <p className="text-white/80 text-sm font-bold mb-2 uppercase tracking-wider">Jouw positie</p>
-          {myPosition ? (
+          {hasCompetition && myPosition ? (
             <>
               <div className="flex items-baseline gap-2">
                 <span className="text-7xl font-black tracking-tighter">{myPosition}</span>
@@ -50,7 +59,7 @@ export default async function RankingPage() {
               <p className="text-lg font-semibold mt-2">{myPouleLabel}</p>
             </>
           ) : (
-            <p className="text-xl font-bold mt-2 text-white/80">Nog niet ingedeeld in een poule</p>
+            <p className="text-xl font-bold mt-2 text-white/80">{hasCompetition ? 'Nog niet ingedeeld in een poule' : 'Je neemt momenteel niet deel aan een actieve competitie.'}</p>
           )}
         </div>
         <Trophy className="relative z-10 w-24 h-24 text-white/20" />
@@ -79,7 +88,13 @@ export default async function RankingPage() {
           {myPouleLabel ? `Huidige stand – ${myPouleLabel}` : 'Huidige Stand'}
         </div>
         <div className="divide-y divide-border/40">
-          {rankedPlayers.length > 0 ? rankedPlayers.map((pp) => {
+          {!hasCompetition ? (
+            <div className="flex flex-col items-center justify-center py-16 text-center">
+              <Trophy className="w-12 h-12 text-muted-foreground/30 mb-4" />
+              <p className="font-bold text-muted-foreground">Je neemt momenteel niet deel aan een actieve competitie.</p>
+              <p className="text-xs text-muted-foreground/70 mt-1 font-medium">Schrijf je in voor een competitie om je stand te bekijken.</p>
+            </div>
+          ) : rankedPlayers.length > 0 ? rankedPlayers.map((pp) => {
             const profile = pp.profiles as any
             const name = profile ? `${profile.first_name || ''} ${profile.last_name || ''}`.trim() || 'Onbekend' : 'Onbekend'
             const isMe = pp.player_id === user!.id

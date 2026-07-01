@@ -1,13 +1,7 @@
--- Migration 00011: Roles and Privacy
--- Run this in the Supabase SQL Editor
-
+-- Migration 00014: Align profile schema and role access
 ALTER TABLE public.profiles
-  ADD COLUMN IF NOT EXISTS share_phone boolean DEFAULT false;
-
-ALTER TABLE public.profiles
-  ADD COLUMN IF NOT EXISTS birth_date date;
-
-ALTER TABLE public.profiles
+  ADD COLUMN IF NOT EXISTS share_phone boolean DEFAULT false,
+  ADD COLUMN IF NOT EXISTS birth_date date,
   ADD COLUMN IF NOT EXISTS avatar_url text;
 
 CREATE TABLE IF NOT EXISTS public.roles (
@@ -56,13 +50,9 @@ BEGIN
     CASE WHEN LOWER(new.email) = 'tijs.peetermans@neuritas-ai.com' THEN true ELSE false END,
     false
   )
-  ON CONFLICT (id) DO UPDATE SET 
-    email = EXCLUDED.email, 
+  ON CONFLICT (id) DO UPDATE SET
+    email = EXCLUDED.email,
     updated_at = NOW();
   RETURN new;
-EXCEPTION
-  WHEN OTHERS THEN
-    RAISE WARNING 'handle_new_user failed: %', SQLERRM;
-    RETURN new;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;

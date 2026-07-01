@@ -7,18 +7,19 @@ export default async function ProfilePage() {
 
   const { data: profile } = await supabase
     .from('profiles')
-    .select('first_name, last_name, email, phone, address, birth_date, avatar_url, share_phone, preferences')
+    .select('first_name, last_name, email, phone, birth_date, avatar_url, share_phone, preferences')
     .eq('id', user!.id)
-    .single()
+    .maybeSingle()
+
+  const metadata = (user?.user_metadata ?? {}) as Record<string, any>
 
   return (
     <ProfileClient
       profile={{
-        first_name: profile?.first_name ?? null,
-        last_name: profile?.last_name ?? null,
+        first_name: profile?.first_name ?? metadata.first_name ?? null,
+        last_name: profile?.last_name ?? metadata.last_name ?? null,
         email: profile?.email ?? user!.email ?? '',
         phone: profile?.phone ?? null,
-        address: profile?.address ?? null,
         birth_date: profile?.birth_date ?? null,
         avatar_url: profile?.avatar_url ?? null,
         share_phone: profile?.share_phone ?? false,

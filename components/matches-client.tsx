@@ -29,9 +29,10 @@ interface Props {
   past: Match[]
   userId: string
   pouleName: string | null
+  hasCompetition: boolean
 }
 
-export default function MatchesClient({ upcoming, past, userId, pouleName }: Props) {
+export default function MatchesClient({ upcoming, past, userId, pouleName, hasCompetition }: Props) {
   const [activeTab, setActiveTab] = useState<Tab>('upcoming')
   const [activeMatchId, setActiveMatchId] = useState<string | null>(null)
   const [showScore, setShowScore] = useState(false)
@@ -228,7 +229,19 @@ export default function MatchesClient({ upcoming, past, userId, pouleName }: Pro
       </div>
 
       <div className="bg-card rounded-[1.5rem] border border-border/50 shadow-soft overflow-hidden divide-y divide-border/40 p-2">
-        {currentMatches.length > 0 ? (
+        {!hasCompetition ? (
+          <div className="flex flex-col items-center justify-center py-20 text-center">
+            <Calendar className="w-14 h-14 text-muted-foreground/30 mb-4" />
+            <p className="font-bold text-muted-foreground text-lg">Je bent momenteel nog niet ingeschreven voor een competitie.</p>
+            <p className="text-sm text-muted-foreground/70 mt-1 font-medium">Bekijk beschikbare competities om wedstrijden te zien.</p>
+            <a
+              href="/competitions"
+              className="mt-5 inline-flex items-center justify-center rounded-xl bg-primary px-4 py-2 text-sm font-bold text-primary-foreground transition hover:bg-primary/90"
+            >
+              Bekijk beschikbare competities
+            </a>
+          </div>
+        ) : currentMatches.length > 0 ? (
           currentMatches.map(renderMatchRow)
         ) : (
           <div className="flex flex-col items-center justify-center py-20 text-center">

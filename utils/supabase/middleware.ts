@@ -52,7 +52,7 @@ export async function updateSession(request: NextRequest) {
       .from('profiles')
       .select('role')
       .eq('id', user.id)
-      .single()
+      .maybeSingle()
 
     const dbIsAdmin = profile?.role === 'admin'
     const isAdmin = dbIsAdmin || emailIsAdmin
@@ -68,6 +68,11 @@ export async function updateSession(request: NextRequest) {
           is_active: true,
           updated_at: new Date().toISOString(),
         }, { onConflict: 'id' })
+
+      const { data: adminRole } = await supabase.from('roles').select('id').eq('name', 'admin').maybeSingle()
+      if (adminRole?.id) {
+        await supabase.from('user_roles').upsert({ user_id: user.id, role_id: adminRole.id }, { onConflict: 'user_id,role_id' })
+      }
     }
 
     // Redirect admins away from player routes, and players away from admin routes

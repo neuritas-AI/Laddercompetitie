@@ -6,7 +6,9 @@ export interface ProfileName {
 
 export function getDisplayName(profile: ProfileName): string {
   const name = [profile.first_name, profile.last_name].filter(Boolean).join(' ').trim()
-  return name || 'Speler'
+  if (name) return name
+  if (profile.email) return profile.email.split('@')[0]
+  return ''
 }
 
 export function getInitials(profile: ProfileName): string {
@@ -15,5 +17,6 @@ export function getInitials(profile: ProfileName): string {
   if (first && last) return `${first[0]}${last[0]}`.toUpperCase()
   if (first) return first.slice(0, 2).toUpperCase()
   if (last) return last.slice(0, 2).toUpperCase()
-  return 'SP'
+  if (profile.email) return profile.email.slice(0, 2).toUpperCase()
+  return 'PR'
 }

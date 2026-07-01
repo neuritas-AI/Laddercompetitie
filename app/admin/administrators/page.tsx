@@ -12,7 +12,7 @@ export default async function AdministratorsPage() {
   const { data: admins } = await supabase
     .from('profiles')
     .select('id, first_name, last_name, email, role, is_active, avatar_url, created_at')
-    .eq('is_admin', true)
+    .eq('role', 'admin')
     .order('created_at', { ascending: true })
 
   return (

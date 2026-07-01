@@ -28,7 +28,7 @@ export async function POST(request: NextRequest) {
     .from('profiles')
     .select('role, is_active')
     .eq('id', data.user.id)
-    .single()
+    .maybeSingle()
 
   // Admin emails always get admin access
   const ADMIN_EMAILS = ['tijs.peetermans@neuritas-ai.com']

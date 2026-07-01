@@ -8,6 +8,16 @@ export type ProfileUpdateResult = {
   error?: string
 }
 
+async function readUserProfile(supabase: Awaited<ReturnType<typeof createClient>>, userId: string) {
+  return supabase.from('profiles').select('preferences').eq('id', userId).maybeSingle()
+}
+
+async function toDataUrl(file: File) {
+  const arrayBuffer = await file.arrayBuffer()
+  const base64 = Buffer.from(arrayBuffer).toString('base64')
+  return `data:${file.type || 'image/png'};base64,${base64}`
+}
+
 export async function updateProfile(formData: FormData): Promise<ProfileUpdateResult> {
   const supabase = await createClient()
   const { data: { user }, error: authError } = await supabase.auth.getUser()
@@ -19,15 +29,13 @@ export async function updateProfile(formData: FormData): Promise<ProfileUpdateRe
   const first_name = formData.get('first_name') as string
   const last_name = formData.get('last_name') as string
   const phone = formData.get('phone') as string
-  const address = formData.get('address') as string
   const birth_date = formData.get('birth_date') as string
   const share_phone = formData.get('share_phone') === 'on'
 
   const updates: Record<string, any> = {
-    first_name,
-    last_name,
+    first_name: first_name || null,
+    last_name: last_name || null,
     phone: phone || null,
-    address: address || null,
     birth_date: birth_date || null,
     share_phone,
     updated_at: new Date().toISOString(),
@@ -42,6 +50,7 @@ export async function updateProfile(formData: FormData): Promise<ProfileUpdateRe
     return { success: false, error: error.message }
   }
 
+  revalidatePath('/profile')
   revalidatePath('/', 'layout')
   return { success: true }
 }
@@ -55,9 +64,8 @@ export async function updateNotificationPreferences(formData: FormData): Promise
   }
 
   const notifications = formData.getAll('notifications') as string[]
-  
-  // Get existing preferences first
-  const { data: profile } = await supabase.from('profiles').select('preferences').eq('id', user.id).single()
+
+  const { data: profile } = await readUserProfile(supabase, user.id)
   const prefs = profile?.preferences || {}
   prefs.notifications = notifications
 
@@ -70,6 +78,7 @@ export async function updateNotificationPreferences(formData: FormData): Promise
     return { success: false, error: error.message }
   }
 
+  revalidatePath('/profile')
   revalidatePath('/', 'layout')
   return { success: true }
 }
@@ -91,19 +100,7 @@ export async function uploadAvatar(formData: FormData): Promise<{ success: boole
     return { success: false, error: 'Bestand is te groot (max 2MB).' }
   }
 
-  const ext = file.name.split('.').pop()
-  const filePath = `${user.id}/avatar.${ext}`
-
-  const { error: uploadError } = await supabase.storage
-    .from('avatars')
-    .upload(filePath, file, { upsert: true, contentType: file.type })
-
-  if (uploadError) {
-    return { success: false, error: uploadError.message }
-  }
-
-  const { data: urlData } = supabase.storage.from('avatars').getPublicUrl(filePath)
-  const avatarUrl = `${urlData.publicUrl}?t=${Date.now()}`
+  const avatarUrl = await toDataUrl(file)
 
   const { error: updateError } = await supabase
     .from('profiles')
@@ -114,9 +111,38 @@ export async function uploadAvatar(formData: FormData): Promise<{ success: boole
     return { success: false, error: updateError.message }
   }
 
+  revalidatePath('/profile')
+  revalidatePath('/dashboard')
+  revalidatePath('/matches')
+  revalidatePath('/ranking')
   revalidatePath('/', 'layout')
 
   return { success: true, avatarUrl }
+}
+
+export async function removeAvatar(): Promise<ProfileUpdateResult> {
+  const supabase = await createClient()
+  const { data: { user }, error: authError } = await supabase.auth.getUser()
+
+  if (authError || !user) {
+    return { success: false, error: 'Niet ingelogd.' }
+  }
+
+  const { error } = await supabase
+    .from('profiles')
+    .update({ avatar_url: null, updated_at: new Date().toISOString() })
+    .eq('id', user.id)
+
+  if (error) {
+    return { success: false, error: error.message }
+  }
+
+  revalidatePath('/profile')
+  revalidatePath('/dashboard')
+  revalidatePath('/matches')
+  revalidatePath('/ranking')
+  revalidatePath('/', 'layout')
+  return { success: true }
 }
 
 export async function updatePassword(formData: FormData): Promise<ProfileUpdateResult> {

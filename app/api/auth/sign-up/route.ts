@@ -82,9 +82,15 @@ export async function POST(request: NextRequest) {
     phone,
     role: 'player',
     is_active: true,
+    share_phone: false,
     created_at: new Date().toISOString(),
     updated_at: new Date().toISOString(),
   }, { onConflict: 'id' })
+
+  const { data: playerRole } = await adminDb.from('roles').select('id').eq('name', 'player').maybeSingle()
+  if (playerRole?.id) {
+    await adminDb.from('user_roles').upsert({ user_id: newUserId, role_id: playerRole.id }, { onConflict: 'user_id,role_id' })
+  }
 
   // Step 3: Link chosen competitions
   if (competitionIds.length > 0) {

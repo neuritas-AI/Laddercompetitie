@@ -14,6 +14,15 @@ export default async function MatchesPage() {
 
   const pouleName = (poulePlayer?.poules as any)?.name ?? null
 
+  const { data: registrations } = await supabase
+    .from('competition_registrations')
+    .select('id')
+    .eq('player_id', user!.id)
+    .neq('status', 'cancelled')
+    .limit(1)
+
+  const hasCompetition = (registrations?.length ?? 0) > 0
+
   const matchSelect = `
     id,
     scheduled_date,
@@ -51,6 +60,7 @@ export default async function MatchesPage() {
       past={(past ?? []) as any}
       userId={user!.id}
       pouleName={pouleName}
+      hasCompetition={hasCompetition}
     />
   )
 }
