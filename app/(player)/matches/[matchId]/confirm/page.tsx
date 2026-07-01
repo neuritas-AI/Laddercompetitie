@@ -60,6 +60,17 @@ export default async function MatchConfirmPage({ params }: Params) {
     )
   }
 
+  if (score.submitted_by === user.id) {
+    return (
+      <div className="min-h-[60vh] flex items-center justify-center p-8">
+        <div className="rounded-[2rem] border border-border/50 bg-card p-10 text-center shadow-sm">
+          <h1 className="text-3xl font-bold">Score is al ingevoerd</h1>
+          <p className="mt-4 text-muted-foreground">Je hebt deze score ingevoerd. Je tegenstander moet deze bevestigen of betwisten.</p>
+        </div>
+      </div>
+    )
+  }
+
   const isPlayer1 = match.player1_id === user.id
   const opponent = isPlayer1 ? player2 : player1
   const opponentName = opponent ? `${opponent.first_name ?? ''} ${opponent.last_name ?? ''}`.trim() : 'Tegenstander'

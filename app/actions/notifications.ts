@@ -7,7 +7,7 @@ export async function sendNotification(
   userId: string,
   title: string,
   message: string,
-  type: 'match_tomorrow' | 'match_today' | 'score_entered' | 'match_scheduled',
+  type: 'match_tomorrow' | 'match_today' | 'score_entered' | 'match_scheduled' | 'score_confirmed',
   linkUrl?: string
 ) {
   const supabase = await createClient()

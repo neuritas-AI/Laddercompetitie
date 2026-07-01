@@ -1,4 +1,5 @@
 import { createClient } from '@/utils/supabase/server'
+import { sendNotification } from '@/app/actions/notifications'
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 
@@ -35,13 +36,13 @@ export async function POST(request: NextRequest) {
 
   // Notify opponent
   const opponentId = match.player1_id === user.id ? match.player2_id : match.player1_id
-  await supabase.from('notifications').insert({
-    user_id: opponentId,
-    title: 'Wedstrijd gepland',
-    message: `Je wedstrijd is gepland op ${date} om ${time}${location ? ' te ' + location : ''}.`,
-    type: 'match_scheduled',
-    link_url: `/matches/${matchId}`,
-  })
+  await sendNotification(
+    opponentId,
+    'Wedstrijd gepland',
+    `Je wedstrijd is gepland op ${date} om ${time}${location ? ' te ' + location : ''}.`,
+    'match_scheduled',
+    `/matches`
+  )
 
   return NextResponse.json({ success: true })
 }

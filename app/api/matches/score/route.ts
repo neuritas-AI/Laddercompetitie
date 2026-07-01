@@ -1,4 +1,5 @@
 import { createClient } from '@/utils/supabase/server'
+import { sendNotification } from '@/app/actions/notifications'
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 
@@ -17,7 +18,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Gelijkspel is niet toegestaan. Er moet een winnaar zijn.' }, { status: 400 })
   }
 
-  // Validate match belongs to user
+  // Validate match belongs to user and is ready for score entry
   const { data: match, error: matchError } = await supabase
     .from('matches')
     .select('id, player1_id, player2_id, status')
@@ -27,6 +28,21 @@ export async function POST(request: NextRequest) {
   if (matchError || !match) return NextResponse.json({ error: 'Wedstrijd niet gevonden' }, { status: 404 })
   if (match.player1_id !== user.id && match.player2_id !== user.id) {
     return NextResponse.json({ error: 'Geen toegang' }, { status: 403 })
+  }
+  if (match.status !== 'scheduled') {
+    return NextResponse.json({ error: 'Score kan alleen ingevoerd worden voor een geplande wedstrijd.' }, { status: 400 })
+  }
+
+  const { data: existingPending } = await supabase
+    .from('match_scores')
+    .select('id')
+    .eq('match_id', matchId)
+    .eq('status', 'pending')
+    .limit(1)
+    .maybeSingle()
+
+  if (existingPending) {
+    return NextResponse.json({ error: 'Er staat al een score klaar voor deze wedstrijd. Laat je tegenstander deze bevestigen of betwisten.' }, { status: 409 })
   }
 
   // Calculate winner
@@ -65,13 +81,13 @@ export async function POST(request: NextRequest) {
 
   // Create notification for opponent
   const opponentId = match.player1_id === user.id ? match.player2_id : match.player1_id
-  await supabase.from('notifications').insert({
-    user_id: opponentId,
-    title: 'Score ingegeven',
-    message: 'Je tegenstander heeft een score ingegeven. Controleer en bevestig de score.',
-    type: 'score_entered',
-    link_url: `/matches/${matchId}/confirm`,
-  })
+  await sendNotification(
+    opponentId,
+    'Score ingegeven',
+    'Je tegenstander heeft een score ingegeven. Controleer en bevestig de score.',
+    'score_entered',
+    `/matches/${matchId}/confirm`
+  )
 
   return NextResponse.json({ success: true, scoreId: score.id })
 }

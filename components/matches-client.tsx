@@ -100,8 +100,19 @@ export default function MatchesClient({ upcoming, past, userId, pouleName, hasCo
     const oppScore = isPlayer1 ? match.score_player2 : match.score_player1
     const won = match.winner_id === userId
     const isScheduled = match.scheduled_date != null || scheduledIds.has(match.id)
-    const isPast = ['confirmed', 'played'].includes(match.status)
+    const isPendingConfirmation = match.status === 'played'
+    const isConfirmed = match.status === 'confirmed'
+    const isDisputed = match.status === 'disputed'
+    const isPast = isConfirmed || isPendingConfirmation || isDisputed
     const poule = (match.poule as any)?.name ?? pouleName ?? ''
+
+    const statusBadge = isConfirmed
+      ? { label: 'Bevestigd', className: 'text-green-600 bg-green-100' }
+      : isPendingConfirmation
+      ? { label: 'Wacht op bevestiging', className: 'text-orange-700 bg-orange-100' }
+      : isDisputed
+      ? { label: 'Betwist', className: 'text-red-600 bg-red-100' }
+      : null
 
     return (
       <div key={match.id} className="p-4 rounded-xl transition-colors hover:bg-muted/10 relative">
@@ -144,9 +155,15 @@ export default function MatchesClient({ upcoming, past, userId, pouleName, hasCo
           {isPast && (
             <div className="flex flex-col items-center">
               <p className="font-black text-2xl">{myScore ?? '?'} – {oppScore ?? '?'}</p>
-              <span className={`text-[10px] font-black tracking-widest uppercase px-2 py-0.5 rounded-full mt-1 ${won ? 'text-green-600 bg-green-100' : 'text-red-600 bg-red-100'}`}>
-                {won ? 'Winst' : 'Verlies'}
-              </span>
+              {statusBadge ? (
+                <span className={`text-[10px] font-black tracking-widest uppercase px-2 py-0.5 rounded-full mt-1 ${statusBadge.className}`}>
+                  {statusBadge.label}
+                </span>
+              ) : (
+                <span className={`text-[10px] font-black tracking-widest uppercase px-2 py-0.5 rounded-full mt-1 ${won ? 'text-green-600 bg-green-100' : 'text-red-600 bg-red-100'}`}>
+                  {won ? 'Winst' : 'Verlies'}
+                </span>
+              )}
             </div>
           )}
 

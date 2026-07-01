@@ -139,6 +139,7 @@ export default function ProfileClient({ profile: initialProfile }: Props) {
     { value: 'match_tomorrow', label: 'Herinnering 1 dag voor wedstrijd' },
     { value: 'match_today', label: 'Herinnering dag van wedstrijd' },
     { value: 'score_entered', label: 'Tegenstander heeft score ingegeven' },
+    { value: 'score_confirmed', label: 'Score bevestigd door tegenstander' },
     { value: 'match_scheduled', label: 'Nieuwe wedstrijd gepland' }
   ]
 
