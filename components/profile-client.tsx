@@ -16,7 +16,6 @@ interface Profile {
   last_name: string | null
   email: string
   phone: string | null
-  birth_date: string | null
   avatar_url: string | null
   share_phone?: boolean | null
   preferences?: { notifications?: string[] } | null
@@ -98,7 +97,6 @@ export default function ProfileClient({ profile: initialProfile }: Props) {
           first_name: (formData.get('first_name') as string) || null,
           last_name: (formData.get('last_name') as string) || null,
           phone: (formData.get('phone') as string) || null,
-          birth_date: (formData.get('birth_date') as string) || null,
           share_phone: formData.get('share_phone') === 'on',
         }
         setProfile(updated)
@@ -224,10 +222,6 @@ export default function ProfileClient({ profile: initialProfile }: Props) {
                 <div className="space-y-2">
                   <Label htmlFor="phone">Telefoon</Label>
                   <Input id="phone" name="phone" type="tel" defaultValue={profile.phone ?? ''} key={`ph-${profile.phone}`} className="h-10" />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="birth_date">Geboortedatum</Label>
-                  <Input id="birth_date" name="birth_date" type="date" defaultValue={profile.birth_date ?? ''} className="h-10" />
                 </div>
                 <div className="sm:col-span-2 mt-2">
                   <label className="flex items-center space-x-3 cursor-pointer">

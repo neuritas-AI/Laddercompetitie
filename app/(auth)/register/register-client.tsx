@@ -11,7 +11,11 @@ type Competition = {
   id: string
   name: string
   label: string
+  price: number
 }
+
+const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+const nameHasDigits = /\d/
 
 export default function RegisterClient({
   competitions,
@@ -22,6 +26,7 @@ export default function RegisterClient({
 }) {
   const [isPending, startTransition] = useTransition()
   const [selectedComps, setSelectedComps] = useState<string[]>([])
+  const [validationError, setValidationError] = useState<string | null>(null)
 
   function toggleComp(id: string) {
     setSelectedComps(prev =>
@@ -33,6 +38,27 @@ export default function RegisterClient({
     e.preventDefault()
     const form = e.currentTarget
     const formData = new FormData(form)
+
+    const firstName = (formData.get('first_name') as string)?.trim()
+    const lastName = (formData.get('last_name') as string)?.trim()
+    const email = (formData.get('email') as string)?.trim()
+
+    if (!emailPattern.test(email)) {
+      setValidationError('Voer een geldig e-mailadres in.')
+      return
+    }
+
+    if (!firstName || nameHasDigits.test(firstName)) {
+      setValidationError('Voornaam mag geen cijfers bevatten.')
+      return
+    }
+
+    if (!lastName || nameHasDigits.test(lastName)) {
+      setValidationError('Achternaam mag geen cijfers bevatten.')
+      return
+    }
+
+    setValidationError(null)
 
     // Remove any existing competitions values and add selected ones
     formData.delete('competitions')
@@ -58,6 +84,12 @@ export default function RegisterClient({
         <div className="flex items-start gap-2 rounded-lg bg-red-50 border border-red-200 p-4 text-sm text-red-700">
           <AlertCircle className="w-4 h-4 mt-0.5 shrink-0" />
           <span>{decodeURIComponent(errorMsg)}</span>
+        </div>
+      )}
+      {validationError && (
+        <div className="flex items-start gap-2 rounded-lg bg-red-50 border border-red-200 p-4 text-sm text-red-700">
+          <AlertCircle className="w-4 h-4 mt-0.5 shrink-0" />
+          <span>{validationError}</span>
         </div>
       )}
 
@@ -133,25 +165,39 @@ export default function RegisterClient({
                 key={comp.id}
                 type="button"
                 onClick={() => toggleComp(comp.id)}
-                className={`flex items-center gap-3 cursor-pointer p-4 rounded-xl border-2 text-left transition-all ${
+                className={`flex flex-col items-start gap-3 cursor-pointer p-4 rounded-xl border-2 text-left transition-all ${
                   selectedComps.includes(comp.id)
                     ? 'border-primary bg-primary/5 text-primary'
                     : 'border-border hover:border-primary/50'
                 }`}
               >
-                <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 transition-colors ${
-                  selectedComps.includes(comp.id)
-                    ? 'border-primary bg-primary'
-                    : 'border-muted-foreground'
-                }`}>
-                  {selectedComps.includes(comp.id) && (
-                    <div className="w-2 h-2 rounded-full bg-white" />
-                  )}
+                <div className="flex items-center justify-between w-full gap-3">
+                  <div className="flex items-center gap-3">
+                    <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 transition-colors ${
+                      selectedComps.includes(comp.id)
+                        ? 'border-primary bg-primary'
+                        : 'border-muted-foreground'
+                    }`}>
+                      {selectedComps.includes(comp.id) && (
+                        <div className="w-2 h-2 rounded-full bg-white" />
+                      )}
+                    </div>
+                    <span className="text-sm font-semibold">{comp.label}</span>
+                  </div>
+                  <span className="text-sm font-semibold text-muted-foreground">{comp.price > 0 ? `€ ${comp.price.toFixed(2)}` : 'Gratis'}</span>
                 </div>
-                <span className="text-sm font-semibold">{comp.label}</span>
               </button>
             ))}
           </div>
+          {selectedComps.length > 0 && (
+            <div className="mt-4 rounded-2xl border border-border/70 bg-muted/50 p-4 text-sm">
+              <p className="font-semibold">Geselecteerde competitie(s)</p>
+              <p className="mt-2">Totaal te betalen: <span className="font-bold">€ {selectedComps.reduce((total, id) => {
+                const comp = competitions.find(c => c.id === id)
+                return total + (comp?.price ?? 0)
+              }, 0).toFixed(2)}</span></p>
+            </div>
+          )}
         </div>
       )}
 
@@ -161,7 +207,9 @@ export default function RegisterClient({
         className="w-full h-12 text-base font-semibold"
       >
         {isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-        Registreren
+        {selectedComps.some(id => (competitions.find(c => c.id === id)?.price ?? 0) > 0)
+          ? 'Registreren & testbetaling uitvoeren'
+          : 'Registreren'}
       </Button>
 
       <p className="text-center text-sm text-muted-foreground">

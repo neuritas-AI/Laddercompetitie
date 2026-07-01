@@ -29,14 +29,12 @@ export async function updateProfile(formData: FormData): Promise<ProfileUpdateRe
   const first_name = formData.get('first_name') as string
   const last_name = formData.get('last_name') as string
   const phone = formData.get('phone') as string
-  const birth_date = formData.get('birth_date') as string
   const share_phone = formData.get('share_phone') === 'on'
 
   const updates: Record<string, any> = {
     first_name: first_name || null,
     last_name: last_name || null,
     phone: phone || null,
-    birth_date: birth_date || null,
     share_phone,
     updated_at: new Date().toISOString(),
   }

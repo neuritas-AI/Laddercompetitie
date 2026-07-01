@@ -22,7 +22,7 @@ export default async function RegisterPage({
   // Fetch open competitions from database
   const { data: competitions } = await supabase
     .from('competitions')
-    .select('id, name, type, season_year, status, max_participants')
+    .select('id, name, type, season_year, status, max_participants, price')
     .eq('status', 'open')
     .order('season_year', { ascending: false })
 
@@ -67,6 +67,7 @@ export default async function RegisterPage({
               id: c.id,
               name: c.name,
               label: `${typeLabels[c.type] ?? c.type} ${c.season_year}`,
+              price: Number(c.price ?? 0),
             }))}
             errorMsg={errorMsg}
           />
