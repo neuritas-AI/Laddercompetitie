@@ -664,32 +664,28 @@ export async function createAdmin(formData: FormData): Promise<AdminActionRespon
     const [first_name, ...lastNameParts] = name.trim().split(' ')
     const last_name = lastNameParts.join(' ')
 
-    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
-    const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY!
-
-    const createUserRes = await fetch(`${supabaseUrl}/auth/v1/admin/users`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'apikey': serviceRoleKey,
-        'Authorization': `Bearer ${serviceRoleKey}`,
+    const emailLower = email.toLowerCase()
+    const createUserData = await adminDb.auth.admin.createUser({
+      email: emailLower,
+      password,
+      email_confirm: true,
+      user_metadata: {
+        first_name,
+        last_name,
       },
-      body: JSON.stringify({
-        email,
-        password,
-        email_confirm: true,
-        user_metadata: {
-          first_name,
-          last_name,
-        },
-      }),
     })
 
-    const createUserData = await createUserRes.json()
-    if (!createUserRes.ok) {
-      const errMsg = createUserData?.message || createUserData?.msg || 'Gebruiker kon niet worden aangemaakt.'
-      if (errMsg.toLowerCase().includes('already')) {
-        const existingUser = await adminDb.from('auth.users').select('id').eq('email', email).maybeSingle()
+    const userPayload: any = createUserData.data?.user ?? createUserData.data
+    const createUserError = createUserData.error
+
+    const duplicateErrorMessage = (message?: string) => {
+      return !!message && /already|duplicate|registered|exists/i.test(message)
+    }
+
+    if (createUserError) {
+      const errMsg = createUserError.message || 'Gebruiker kon niet worden aangemaakt.'
+      if (duplicateErrorMessage(errMsg)) {
+        const existingUser = await adminDb.from('auth.users').select('id').eq('email', emailLower).maybeSingle()
         const userId = existingUser.data?.id
         if (!userId) {
           throw new Error('Deze gebruiker bestaat al, maar is niet in de database terug te vinden.')
@@ -704,7 +700,7 @@ export async function createAdmin(formData: FormData): Promise<AdminActionRespon
           .from('profiles')
           .upsert({
             id: userId,
-            email,
+            email: emailLower,
             role: 'admin',
             is_active: true,
             account_status: 'active',
@@ -715,10 +711,11 @@ export async function createAdmin(formData: FormData): Promise<AdminActionRespon
         revalidatePath('/admin/administrators')
         return { success: true }
       }
-      throw new Error(errMsg)
+
+      return { success: false, error: errMsg }
     }
 
-    const newUserId: string = createUserData.id
+    const newUserId: string = userPayload?.id
     if (!newUserId) {
       return { success: false, error: 'Geen gebruiker ID ontvangen van Supabase.' }
     }

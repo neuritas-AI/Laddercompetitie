@@ -125,7 +125,7 @@ export function PouleActions({ poule, competitions, poules }: { poule: any; comp
               <p className="text-sm text-muted-foreground">Deze poule bevat nog spelers of teams. Kies een andere actieve poule om de inhoud naartoe te verplaatsen.</p>
               <div className="space-y-2">
                 <Label htmlFor={`destination-poule-${poule.id}`}>Bestemming poule</Label>
-                <Select value={destinationPouleId} onValueChange={(value) => setDestinationPouleId(value)}>
+                <Select value={destinationPouleId} onValueChange={(value) => setDestinationPouleId(value ?? '')}>
                   <SelectTrigger id={`destination-poule-${poule.id}`}>
                     <SelectValue placeholder="Kies poule" />
                   </SelectTrigger>
