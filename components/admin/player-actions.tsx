@@ -20,15 +20,15 @@ import {
 } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { deactivatePlayer, blockPlayer, deletePlayer } from '@/app/actions/admin'
+import { activatePlayer, deactivatePlayer, blockPlayer, deletePlayer } from '@/app/actions/admin'
 
-export function PlayerActions({ playerId, playerName }: { playerId: string; playerName: string }) {
+export function PlayerActions({ playerId, playerName, isActive }: { playerId: string; playerName: string; isActive: boolean }) {
   const [open, setOpen] = useState(false)
-  const [pendingAction, setPendingAction] = useState<'deactivate' | 'block' | 'delete' | null>(null)
+  const [pendingAction, setPendingAction] = useState<'activate' | 'deactivate' | 'block' | 'delete' | null>(null)
   const [reason, setReason] = useState('')
   const [isPending, startTransition] = useTransition()
 
-  function confirm(action: 'deactivate' | 'block' | 'delete') {
+  function confirm(action: 'activate' | 'deactivate' | 'block' | 'delete') {
     setPendingAction(action)
     setOpen(true)
   }
@@ -38,7 +38,9 @@ export function PlayerActions({ playerId, playerName }: { playerId: string; play
 
     startTransition(async () => {
       let result
-      if (pendingAction === 'deactivate') {
+      if (pendingAction === 'activate') {
+        result = await activatePlayer(playerId)
+      } else if (pendingAction === 'deactivate') {
         result = await deactivatePlayer(playerId)
       } else if (pendingAction === 'block') {
         result = await blockPlayer(playerId, reason)
@@ -61,9 +63,15 @@ export function PlayerActions({ playerId, playerName }: { playerId: string; play
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end">
-          <DropdownMenuItem onClick={() => confirm('deactivate')}>
-            <UserCheck className="mr-2 h-4 w-4" /> Deactiveren
-          </DropdownMenuItem>
+          {isActive ? (
+            <DropdownMenuItem onClick={() => confirm('deactivate')}>
+              <UserCheck className="mr-2 h-4 w-4" /> Deactiveren
+            </DropdownMenuItem>
+          ) : (
+            <DropdownMenuItem onClick={() => confirm('activate')}>
+              <UserCheck className="mr-2 h-4 w-4" /> Activeren
+            </DropdownMenuItem>
+          )}
           <DropdownMenuItem onClick={() => confirm('block')}>
             <Ban className="mr-2 h-4 w-4" /> Blokkeren
           </DropdownMenuItem>
@@ -82,14 +90,18 @@ export function PlayerActions({ playerId, playerName }: { playerId: string; play
                 ? 'Speler verwijderen?'
                 : pendingAction === 'block'
                   ? 'Speler blokkeren?'
-                  : 'Speler deactiveren?'}
+                  : pendingAction === 'activate'
+                    ? 'Speler activeren?'
+                    : 'Speler deactiveren?'}
             </DialogTitle>
             <DialogDescription>
               {pendingAction === 'delete'
                 ? `Je staat op het punt ${playerName} te verwijderen. Historische wedstrijdresultaten blijven behouden.`
                 : pendingAction === 'block'
                   ? `Je staat op het punt ${playerName} te blokkeren.`
-                  : `Je staat op het punt ${playerName} te deactiveren.`}
+                  : pendingAction === 'activate'
+                    ? `Je staat op het punt ${playerName} opnieuw te activeren. De speler kan direct weer inloggen.`
+                    : `Je staat op het punt ${playerName} te deactiveren. De speler kan niet meer inloggen maar historische gegevens blijven behouden.`}
             </DialogDescription>
           </DialogHeader>
           {pendingAction === 'block' && (

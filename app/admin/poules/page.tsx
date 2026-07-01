@@ -16,12 +16,14 @@ export default async function AdminPoulesPage() {
       id,
       name,
       level,
+      competition_id,
       competitions(name, type),
       poule_players(
         position,
         player_id,
         profiles(first_name, last_name, avatar_url)
-      )
+      ),
+      team_poules(id)
     `)
     .order('level', { ascending: true })
 
@@ -89,6 +91,9 @@ export default async function AdminPoulesPage() {
                     )}
                   </div>
                 </CardContent>
+                <div className="border-t border-border/50 p-4 bg-muted/10">
+                  <PouleActions poule={poule} competitions={competitions ?? []} poules={poules ?? []} />
+                </div>
               </Card>
             )
           })}

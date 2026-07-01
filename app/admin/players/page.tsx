@@ -71,7 +71,7 @@ export default async function AdminPlayersPage() {
                         </span>
                       </div>
                       <div className="flex items-center gap-2 ml-auto sm:ml-0">
-                        <PlayerActions playerId={player.id} playerName={name} />
+                        <PlayerActions playerId={player.id} playerName={name} isActive={player.is_active} />
                       </div>
                     </div>
                   </div>

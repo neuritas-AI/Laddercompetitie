@@ -228,13 +228,75 @@ export async function updatePoule(pouleId: string, formData: FormData): Promise<
   }
 }
 
-export async function deletePoule(pouleId: string): Promise<ActionResponse> {
+export async function deletePoule(pouleId: string, destinationPouleId?: string): Promise<ActionResponse> {
   try {
     const { supabase } = await ensureAdmin()
 
+    const [{ data: playerEntries, error: playerError }, { data: teamEntries, error: teamError }] = await Promise.all([
+      supabase.from('poule_players').select('player_id').eq('poule_id', pouleId),
+      supabase.from('team_poules').select('team_id').eq('poule_id', pouleId),
+    ])
+
+    if (playerError) throw playerError
+    if (teamError) throw teamError
+
+    const playerCount = playerEntries?.length ?? 0
+    const teamCount = teamEntries?.length ?? 0
+
+    if ((playerCount || teamCount) > 0 && !destinationPouleId) {
+      return {
+        success: false,
+        error: `Deze poule bevat nog ${playerCount} speler(s) en ${teamCount} team(s). Verplaats eerst de inhoud naar een andere poule of maak de huidige poule eerst leeg.`,
+      }
+    }
+
+    if (destinationPouleId) {
+      if (destinationPouleId === pouleId) {
+        return { success: false, error: 'Kies een andere poule als bestemming.' }
+      }
+
+      if (playerCount > 0) {
+        const playerRows = playerEntries.map((entry: any, index: number) => ({
+          poule_id: destinationPouleId,
+          player_id: entry.player_id,
+          position: index + 1,
+        }))
+
+        const { error: upsertPlayersError } = await supabase
+          .from('poule_players')
+          .upsert(playerRows, { onConflict: 'poule_id,player_id' })
+        if (upsertPlayersError) throw upsertPlayersError
+
+        const { error: deletePlayersError } = await supabase
+          .from('poule_players')
+          .delete()
+          .eq('poule_id', pouleId)
+        if (deletePlayersError) throw deletePlayersError
+      }
+
+      if (teamCount > 0) {
+        const teamRows = teamEntries.map((entry: any, index: number) => ({
+          poule_id: destinationPouleId,
+          team_id: entry.team_id,
+          position: index + 1,
+        }))
+
+        const { error: upsertTeamsError } = await supabase
+          .from('team_poules')
+          .upsert(teamRows, { onConflict: 'poule_id,team_id' })
+        if (upsertTeamsError) throw upsertTeamsError
+
+        const { error: deleteTeamsError } = await supabase
+          .from('team_poules')
+          .delete()
+          .eq('poule_id', pouleId)
+        if (deleteTeamsError) throw deleteTeamsError
+      }
+    }
+
     const { error } = await supabase
       .from('poules')
-      .update({ is_active: false, deleted_at: new Date().toISOString() })
+      .update({ is_active: false, deleted_at: new Date().toISOString(), updated_at: new Date().toISOString() })
       .eq('id', pouleId)
 
     if (error) throw error
@@ -454,6 +516,24 @@ export async function deactivatePlayer(playerId: string): Promise<ActionResponse
   }
 }
 
+export async function activatePlayer(playerId: string): Promise<ActionResponse> {
+  try {
+    const { supabase } = await ensureAdmin()
+    const { error } = await supabase
+      .from('profiles')
+      .update({ is_active: true, account_status: 'active', blocked_reason: null, updated_at: new Date().toISOString() })
+      .eq('id', playerId)
+
+    if (error) throw error
+
+    revalidatePath('/admin/players')
+    return { success: true }
+  } catch (error: any) {
+    console.error('activatePlayer error:', error)
+    return { success: false, error: error?.message || 'Onbekende fout' }
+  }
+}
+
 export async function blockPlayer(playerId: string, reason?: string): Promise<ActionResponse> {
   try {
     const { supabase } = await ensureAdmin()
@@ -480,18 +560,24 @@ export async function blockPlayer(playerId: string, reason?: string): Promise<Ac
 export async function deletePlayer(playerId: string): Promise<ActionResponse> {
   try {
     const { supabase } = await ensureAdmin()
-    const { error } = await supabase
-      .from('profiles')
-      .update({
-        is_active: false,
-        account_status: 'deleted',
-        deleted_at: new Date().toISOString(),
-        blocked_reason: 'Verwijderd door beheerder',
-        updated_at: new Date().toISOString(),
-      })
+
+    // Remove references that are not cascade-safe before deleting the auth user.
+    const cleanupSteps = [
+      supabase.from('match_scores').delete().or(`submitted_by.eq.${playerId},confirmed_by.eq.${playerId},winner_id.eq.${playerId}`),
+      supabase.from('matches').delete().or(`player1_id.eq.${playerId},player2_id.eq.${playerId},winner_id.eq.${playerId}`),
+    ]
+
+    for (const step of cleanupSteps) {
+      const { error } = await step
+      if (error) throw error
+    }
+
+    const { error: deleteUserError } = await supabase
+      .from('auth.users')
+      .delete()
       .eq('id', playerId)
 
-    if (error) throw error
+    if (deleteUserError) throw deleteUserError
 
     revalidatePath('/admin/players')
     return { success: true }

@@ -23,15 +23,18 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { updatePoule, deletePoule } from '@/app/actions/admin'
 
-export function PouleActions({ poule, competitions }: { poule: any; competitions: any[] }) {
+export function PouleActions({ poule, competitions, poules }: { poule: any; competitions: any[]; poules: any[] }) {
   const [open, setOpen] = useState(false)
   const [deleteOpen, setDeleteOpen] = useState(false)
+  const [destinationPouleId, setDestinationPouleId] = useState<string>('')
   const [isPending, startTransition] = useTransition()
   const [formState, setFormState] = useState({
     name: poule.name,
     level: String(poule.level ?? 1),
     competition_id: poule.competition_id,
   })
+
+  const availableDestinationPoules = poules.filter((item: any) => item.id !== poule.id)
 
   function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
@@ -46,7 +49,7 @@ export function PouleActions({ poule, competitions }: { poule: any; competitions
 
   function handleDelete() {
     startTransition(async () => {
-      const result = await deletePoule(poule.id)
+      const result = await deletePoule(poule.id, destinationPouleId || undefined)
       if (result.success) {
         setDeleteOpen(false)
       }
@@ -117,9 +120,27 @@ export function PouleActions({ poule, competitions }: { poule: any; competitions
             <DialogTitle>Poule verwijderen?</DialogTitle>
             <DialogDescription>Deze actie deactiveert de poule zonder historische resultaten te verwijderen.</DialogDescription>
           </DialogHeader>
+          {destinationPouleId || poule.poule_players?.length > 0 || poule.team_poules?.length > 0 ? (
+            <div className="space-y-4 py-4">
+              <p className="text-sm text-muted-foreground">Deze poule bevat nog spelers of teams. Kies een andere actieve poule om de inhoud naartoe te verplaatsen.</p>
+              <div className="space-y-2">
+                <Label htmlFor={`destination-poule-${poule.id}`}>Bestemming poule</Label>
+                <Select value={destinationPouleId} onValueChange={(value) => setDestinationPouleId(value)}>
+                  <SelectTrigger id={`destination-poule-${poule.id}`}>
+                    <SelectValue placeholder="Kies poule" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {availableDestinationPoules.map((item: any) => (
+                  <SelectItem key={item.id} value={item.id}>{item.name}</SelectItem>
+                ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+          ) : null}
           <DialogFooter>
             <Button variant="outline" onClick={() => setDeleteOpen(false)} type="button">Annuleren</Button>
-            <Button onClick={handleDelete} disabled={isPending} className="font-bold text-red-600">
+            <Button onClick={handleDelete} disabled={isPending || (!destinationPouleId && (poule.poule_players?.length > 0 || poule.team_poules?.length > 0))} className="font-bold text-red-600">
               {isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               Verwijderen
             </Button>
