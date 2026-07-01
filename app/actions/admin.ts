@@ -176,31 +176,6 @@ export async function deleteCompetition(id: string): Promise<ActionResponse> {
 
 // ─── POULES ──────────────────────────────────────────────────────────────────
 
-export async function createPoule(formData: FormData): Promise<ActionResponse> {
-  try {
-    const { supabase } = await ensureAdmin()
-
-    const name = formData.get('name') as string
-    const level = parseInt(formData.get('level') as string, 10)
-    const competition_id = formData.get('competition_id') as string
-
-    if (!name || isNaN(level) || !competition_id) {
-      return { success: false, error: 'Alle velden zijn verplicht.' }
-    }
-
-    const { error } = await supabase.from('poules').insert({ name, level, competition_id, is_active: true })
-
-    if (error) throw error
-
-    revalidatePath('/admin/poules')
-    return { success: true }
-  } catch (error: any) {
-    console.error('createPoule error:', error)
-    const msg = error?.message || JSON.stringify(error)
-    return { success: false, error: msg || 'Onbekende fout' }
-  }
-}
-
 export async function updatePoule(pouleId: string, formData: FormData): Promise<ActionResponse> {
   try {
     const { supabase } = await ensureAdmin()
@@ -309,6 +284,189 @@ export async function deletePoule(pouleId: string, destinationPouleId?: string):
   }
 }
 
+async function generateMatchesForPoule(supabase: any, pouleId: string): Promise<ActionResponse> {
+  try {
+    const { data: players, error: playersError } = await supabase
+      .from('poule_players')
+      .select('player_id, position')
+      .eq('poule_id', pouleId)
+      .order('position', { ascending: true })
+
+    if (playersError) throw playersError
+    if (!players || players.length < 2) {
+      return { success: true }
+    }
+
+    const { data: existingMatches, error: existingError } = await supabase
+      .from('matches')
+      .select('player1_id, player2_id')
+      .eq('poule_id', pouleId)
+
+    if (existingError) throw existingError
+
+    const pairKey = (a: string, b: string) => (a < b ? `${a}|${b}` : `${b}|${a}`)
+    const existingPairSet = new Set((existingMatches ?? []).map((match: any) => pairKey(match.player1_id, match.player2_id)))
+
+    const deadline = new Date()
+    deadline.setDate(deadline.getDate() + 30)
+    const deadlineDate = deadline.toISOString().split('T')[0]
+
+    const matchRows: any[] = []
+    for (let i = 0; i < players.length - 1; i++) {
+      for (let j = i + 1; j < players.length; j++) {
+        const key = pairKey(players[i].player_id, players[j].player_id)
+        if (existingPairSet.has(key)) continue
+        matchRows.push({
+          poule_id: pouleId,
+          player1_id: players[i].player_id,
+          player2_id: players[j].player_id,
+          deadline: deadlineDate,
+          status: 'scheduled',
+          score_player1: null,
+          score_player2: null,
+          winner_id: null,
+        })
+      }
+    }
+
+    if (matchRows.length === 0) {
+      return { success: true }
+    }
+
+    const { error: insertError } = await supabase.from('matches').insert(matchRows)
+    if (insertError) throw insertError
+
+    return { success: true }
+  } catch (error: any) {
+    console.error('generateMatchesForPoule error:', error)
+    return { success: false, error: error?.message || 'Kon geen wedstrijden genereren voor deze poule.' }
+  }
+}
+
+async function recalculatePouleStandings(supabase: any, pouleId: string): Promise<ActionResponse> {
+  try {
+    const { data: players, error: playersError } = await supabase
+      .from('poule_players')
+      .select('id, player_id, created_at')
+      .eq('poule_id', pouleId)
+
+    if (playersError) throw playersError
+    if (!players || players.length === 0) {
+      return { success: true }
+    }
+
+    const { data: matches, error: matchesError } = await supabase
+      .from('matches')
+      .select('player1_id, player2_id, winner_id')
+      .eq('poule_id', pouleId)
+      .eq('status', 'confirmed')
+
+    if (matchesError) throw matchesError
+
+    const standings = new Map<string, { matches_played: number; matches_won: number; matches_lost: number }>()
+    players.forEach((player: any) => {
+      standings.set(player.player_id, { matches_played: 0, matches_won: 0, matches_lost: 0 })
+    })
+
+    for (const match of matches ?? []) {
+      if (!match.player1_id || !match.player2_id || !match.winner_id) continue
+      const player1 = standings.get(match.player1_id)
+      const player2 = standings.get(match.player2_id)
+      if (!player1 || !player2) continue
+
+      player1.matches_played += 1
+      player2.matches_played += 1
+
+      if (match.winner_id === match.player1_id) {
+        player1.matches_won += 1
+        player2.matches_lost += 1
+      } else {
+        player2.matches_won += 1
+        player1.matches_lost += 1
+      }
+    }
+
+    const orderedPlayers = [...players].sort((a: any, b: any) => {
+      const aStats = standings.get(a.player_id)!
+      const bStats = standings.get(b.player_id)!
+      if (bStats.matches_won !== aStats.matches_won) {
+        return bStats.matches_won - aStats.matches_won
+      }
+      if (aStats.matches_lost !== bStats.matches_lost) {
+        return aStats.matches_lost - bStats.matches_lost
+      }
+      return new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+    })
+
+    for (let index = 0; index < orderedPlayers.length; index++) {
+      const player = orderedPlayers[index]
+      const stats = standings.get(player.player_id)!
+      const { error: updateError } = await supabase
+        .from('poule_players')
+        .update({
+          position: index + 1,
+          matches_played: stats.matches_played,
+          matches_won: stats.matches_won,
+          matches_lost: stats.matches_lost,
+        })
+        .eq('id', player.id)
+      if (updateError) throw updateError
+    }
+
+    return { success: true }
+  } catch (error: any) {
+    console.error('recalculatePouleStandings error:', error)
+    return { success: false, error: error?.message || 'Kon de rangschikking niet bijwerken.' }
+  }
+}
+
+export async function createPoule(formData: FormData): Promise<ActionResponse> {
+  try {
+    const { supabase } = await ensureAdmin()
+
+    const name = formData.get('name') as string
+    const level = parseInt(formData.get('level') as string, 10)
+    const competition_id = formData.get('competition_id') as string
+    const playerIds = formData.getAll('player_ids').map((id) => String(id)).filter((id) => id)
+
+    if (!name || isNaN(level) || !competition_id) {
+      return { success: false, error: 'Alle velden zijn verplicht.' }
+    }
+
+    const { data: createdPoule, error } = await supabase
+      .from('poules')
+      .insert({ name, level, competition_id, is_active: true })
+      .select('id')
+      .single()
+
+    if (error || !createdPoule) throw error ?? new Error('Poule kon niet worden aangemaakt.')
+
+    if (playerIds.length > 0) {
+      const rows = playerIds.map((playerId, index) => ({
+        poule_id: createdPoule.id,
+        player_id: playerId,
+        position: index + 1,
+      }))
+
+      const { error: playerError } = await supabase.from('poule_players').insert(rows)
+      if (playerError) throw playerError
+
+      const matchResult = await generateMatchesForPoule(supabase, createdPoule.id)
+      if (!matchResult.success) throw new Error(matchResult.error || 'Kon geen wedstrijden aanmaken voor deze poule.')
+
+      const standingsResult = await recalculatePouleStandings(supabase, createdPoule.id)
+      if (!standingsResult.success) throw new Error(standingsResult.error || 'Kon de poulestand bijwerken.')
+    }
+
+    revalidatePath('/admin/poules')
+    return { success: true }
+  } catch (error: any) {
+    console.error('createPoule error:', error)
+    const msg = error?.message || JSON.stringify(error)
+    return { success: false, error: msg || 'Onbekende fout' }
+  }
+}
+
 export async function generatePouleGroups(formData: FormData): Promise<ActionResponse> {
   try {
     const { supabase } = await ensureAdmin()
@@ -384,7 +542,14 @@ export async function generatePouleGroups(formData: FormData): Promise<ActionRes
         position: positionIndex + 1,
       }))
 
-      await supabase.from('poule_players').insert(rows)
+      const { error: playerInsertError } = await supabase.from('poule_players').insert(rows)
+      if (playerInsertError) throw playerInsertError
+
+      const matchResult = await generateMatchesForPoule(supabase, createdPoule.id)
+      if (!matchResult.success) throw new Error(matchResult.error || 'Kon geen wedstrijden aanmaken voor de gegenereerde poule.')
+
+      const standingsResult = await recalculatePouleStandings(supabase, createdPoule.id)
+      if (!standingsResult.success) throw new Error(standingsResult.error || 'Kon de poulestand bijwerken.')
     }
 
     revalidatePath('/admin/poules')
@@ -429,10 +594,96 @@ export async function movePlayerToPoule(playerId: string, fromPouleId: string, t
 
     if (insertError) throw insertError
 
+    await supabase.from('matches').delete().eq('poule_id', fromPouleId).or(`player1_id.eq.${playerId},player2_id.eq.${playerId}`)
+
+    const generateResult = await generateMatchesForPoule(supabase, toPouleId)
+    if (!generateResult.success) throw new Error(generateResult.error || 'Kon geen wedstrijden genereren in de doelpoule.')
+
+    const recalcFrom = await recalculatePouleStandings(supabase, fromPouleId)
+    if (!recalcFrom.success) throw new Error(recalcFrom.error || 'Kon de oorspronkelijke poule niet bijwerken.')
+
+    const recalcTo = await recalculatePouleStandings(supabase, toPouleId)
+    if (!recalcTo.success) throw new Error(recalcTo.error || 'Kon de doelpoule niet bijwerken.')
+
     revalidatePath('/admin/poules')
     return { success: true }
   } catch (error: any) {
     console.error('movePlayerToPoule error:', error)
+    return { success: false, error: error?.message || 'Onbekende fout' }
+  }
+}
+
+export async function addPlayerToPoule(pouleId: string, playerId: string): Promise<ActionResponse> {
+  try {
+    const { supabase } = await ensureAdmin()
+
+    if (!pouleId || !playerId) {
+      return { success: false, error: 'Selectie is ongeldig.' }
+    }
+
+    const { data: existingEntries, error: lookupError } = await supabase
+      .from('poule_players')
+      .select('position')
+      .eq('poule_id', pouleId)
+      .order('position', { ascending: true })
+
+    if (lookupError) throw lookupError
+
+    const nextPosition = (existingEntries?.length ?? 0) + 1
+
+    const { error: insertError } = await supabase.from('poule_players').insert({
+      poule_id: pouleId,
+      player_id: playerId,
+      position: nextPosition,
+    })
+
+    if (insertError) throw insertError
+
+    const matchesResult = await generateMatchesForPoule(supabase, pouleId)
+    if (!matchesResult.success) throw new Error(matchesResult.error || 'Kon geen wedstrijden genereren voor deze poule.')
+
+    const standingsResult = await recalculatePouleStandings(supabase, pouleId)
+    if (!standingsResult.success) throw new Error(standingsResult.error || 'Kon de poulestand niet bijwerken.')
+
+    revalidatePath('/admin/poules')
+    return { success: true }
+  } catch (error: any) {
+    console.error('addPlayerToPoule error:', error)
+    return { success: false, error: error?.message || 'Onbekende fout' }
+  }
+}
+
+export async function removePlayerFromPoule(playerId: string, pouleId: string): Promise<ActionResponse> {
+  try {
+    const { supabase } = await ensureAdmin()
+
+    if (!playerId || !pouleId) {
+      return { success: false, error: 'Selectie is ongeldig.' }
+    }
+
+    const { error: deleteEntriesError } = await supabase
+      .from('poule_players')
+      .delete()
+      .eq('player_id', playerId)
+      .eq('poule_id', pouleId)
+
+    if (deleteEntriesError) throw deleteEntriesError
+
+    const { error: deleteMatchesError } = await supabase
+      .from('matches')
+      .delete()
+      .eq('poule_id', pouleId)
+      .or(`player1_id.eq.${playerId},player2_id.eq.${playerId}`)
+
+    if (deleteMatchesError) throw deleteMatchesError
+
+    const standingsResult = await recalculatePouleStandings(supabase, pouleId)
+    if (!standingsResult.success) throw new Error(standingsResult.error || 'Kon de poulestand niet bijwerken.')
+
+    revalidatePath('/admin/poules')
+    return { success: true }
+  } catch (error: any) {
+    console.error('removePlayerFromPoule error:', error)
     return { success: false, error: error?.message || 'Onbekende fout' }
   }
 }

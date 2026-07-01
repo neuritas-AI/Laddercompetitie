@@ -14,7 +14,13 @@ type Competition = {
   name: string
 }
 
-export default function AddPouleDialog({ competitions }: { competitions: Competition[] }) {
+type Player = {
+  id: string
+  first_name?: string | null
+  last_name?: string | null
+}
+
+export default function AddPouleDialog({ competitions, players }: { competitions: Competition[]; players: Player[] }) {
   const [open, setOpen] = useState(false)
   const [isPending, startTransition] = useTransition()
   const [error, setError] = useState<string | null>(null)
@@ -63,6 +69,27 @@ export default function AddPouleDialog({ competitions }: { competitions: Competi
           <div className="space-y-2">
             <Label htmlFor="level">Niveau (1 is het hoogst)</Label>
             <Input id="level" name="level" type="number" min="1" required defaultValue="1" />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="player_ids">Spelers toevoegen</Label>
+            <p className="text-xs text-muted-foreground mb-2">Kies één of meerdere spelers voor deze poule. Wedstrijden worden automatisch aangemaakt nadat je de poule bevestigt.</p>
+            <select
+              id="player_ids"
+              name="player_ids"
+              multiple
+              size={6}
+              className="w-full rounded-xl border border-input bg-background p-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
+            >
+              {players.map((player) => {
+                const label = `${player.first_name ?? ''} ${player.last_name ?? ''}`.trim() || 'Onbekende speler'
+                return (
+                  <option key={player.id} value={player.id}>
+                    {label}
+                  </option>
+                )
+              })}
+            </select>
           </div>
 
           {error && <div className="text-sm font-medium text-red-500">{error}</div>}

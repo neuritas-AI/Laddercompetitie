@@ -5,6 +5,7 @@ import AddPouleDialog from '@/components/admin/add-poule-dialog'
 import GeneratePoulesDialog from '@/components/admin/generate-poules-dialog'
 import { PouleActions } from '@/components/admin/poule-actions'
 import MovePlayerDialog from '@/components/admin/move-player-dialog'
+import RemovePlayerFromPouleButton from '@/components/admin/remove-player-from-poule-button'
 
 export default async function AdminPoulesPage() {
   const supabase = await createClient()
@@ -30,11 +31,19 @@ export default async function AdminPoulesPage() {
     .order('level', { ascending: true })
 
   // Fetch competitions for the add poule dialog
-  const { data: competitions } = await supabase
-    .from('competitions')
-    .select('id, name')
-    .eq('is_active', true)
-    .order('name')
+  const [{ data: competitions }, { data: players }] = await Promise.all([
+    supabase
+      .from('competitions')
+      .select('id, name')
+      .eq('is_active', true)
+      .order('name'),
+    supabase
+      .from('profiles')
+      .select('id, first_name, last_name')
+      .eq('is_active', true)
+      .neq('role', 'admin')
+      .order('first_name'),
+  ])
 
   return (
     <div className="space-y-6 p-6 lg:p-8">
@@ -45,7 +54,7 @@ export default async function AdminPoulesPage() {
         </div>
         <div className="flex flex-wrap gap-2">
           <GeneratePoulesDialog competitions={competitions ?? []} />
-          <AddPouleDialog competitions={competitions ?? []} />
+          <AddPouleDialog competitions={competitions ?? []} players={(players ?? []) as any} />
         </div>
       </div>
 
@@ -85,7 +94,10 @@ export default async function AdminPoulesPage() {
                             }
                           </div>
                           <div className="font-semibold text-sm flex-1 truncate">{name}</div>
-                          <MovePlayerDialog player={{ id: pp.player_id, name }} poules={(poules ?? []).filter((item: any) => item.id !== poule.id)} currentPouleId={poule.id} />
+                          <div className="flex items-center gap-2">
+                            <MovePlayerDialog player={{ id: pp.player_id, name }} poules={(poules ?? []).filter((item: any) => item.id !== poule.id)} currentPouleId={poule.id} />
+                            <RemovePlayerFromPouleButton playerId={pp.player_id} pouleId={poule.id} />
+                          </div>
                         </div>
                       )
                     }) : (

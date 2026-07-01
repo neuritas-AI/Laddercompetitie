@@ -48,11 +48,20 @@ export async function POST(request: NextRequest) {
 
   if (scoreError) return NextResponse.json({ error: scoreError.message }, { status: 500 })
 
-  // Update match status to 'played'
-  await supabase
+  // Update match with entered score and mark as played pending confirmation
+  const { error: matchUpdateError } = await supabase
     .from('matches')
-    .update({ status: 'played', winner_id: winnerId })
+    .update({
+      status: 'played',
+      winner_id: winnerId,
+      score_player1: String(p1Score),
+      score_player2: String(p2Score),
+    })
     .eq('id', matchId)
+
+  if (matchUpdateError) {
+    return NextResponse.json({ error: matchUpdateError.message }, { status: 500 })
+  }
 
   // Create notification for opponent
   const opponentId = match.player1_id === user.id ? match.player2_id : match.player1_id
