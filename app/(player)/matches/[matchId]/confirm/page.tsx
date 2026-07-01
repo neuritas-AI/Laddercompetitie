@@ -34,10 +34,6 @@ export default async function MatchConfirmPage({ params }: Params) {
 
   const player1 = Array.isArray(match.player1) ? match.player1[0] : match.player1
   const player2 = Array.isArray(match.player2) ? match.player2[0] : match.player2
-  const isPlayer1 = match.player1_id === user.id
-  const opponent = isPlayer1 ? player2 : player1
-  const opponentName = opponent ? `${opponent.first_name ?? ''} ${opponent.last_name ?? ''}`.trim() : 'Tegenstander'
-  const scoreLine = `${score.p1_score} – ${score.p2_score}`
 
   const { data: score, error: scoreError } = await supabase
     .from('match_scores')
@@ -52,6 +48,11 @@ export default async function MatchConfirmPage({ params }: Params) {
     console.error('MatchConfirmPage score query error:', scoreError)
     notFound()
   }
+
+  const isPlayer1 = match.player1_id === user.id
+  const opponent = isPlayer1 ? player2 : player1
+  const opponentName = opponent ? `${opponent.first_name ?? ''} ${opponent.last_name ?? ''}`.trim() : 'Tegenstander'
+  const scoreLine = `${score.p1_score} – ${score.p2_score}`
 
   if (!score) {
     return (
