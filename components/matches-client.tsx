@@ -227,7 +227,7 @@ export default function MatchesClient({ upcoming, past, userId, pouleName, hasCo
             </div>
             <div className="space-y-2 mt-4">
               <Label htmlFor="location" className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Locatie (optioneel)</Label>
-              <Input id="location" placeholder="bv. Terrein 2" value={scheduleData.location} onChange={e => setScheduleData(d => ({ ...d, location: e.target.value }))} className="h-12 rounded-xl bg-white" />
+              <Input id="location" placeholder="bv. Terrein 2" value={scheduleData.location} onChange={(e) => setScheduleData(d => ({ ...d, location: e.target.value }))} className="h-12 rounded-xl bg-white" />
             </div>
             {scheduleError && <p className="text-red-600 text-sm font-semibold flex items-center gap-1.5 mt-4"><AlertCircle className="h-4 w-4" />{scheduleError}</p>}
             <div className="flex gap-3 pt-6">
@@ -240,24 +240,6 @@ export default function MatchesClient({ upcoming, past, userId, pouleName, hasCo
       </div>
     )
   }
-
-  // Combine provided lists and compute groups for the three tabs
-  const allMatches = [...upcoming, ...past]
-  const now = new Date()
-
-  const upcomingMatches = allMatches.filter(m => {
-    if (m.status === 'scheduled') return true
-    if (m.scheduled_date) {
-      const d = new Date(m.scheduled_date)
-      return d > now && m.status !== 'played' && m.status !== 'confirmed' && m.status !== 'disputed'
-    }
-    return false
-  })
-
-  // confirmMatches state will be populated from server when user opens the confirm tab
-  const pastMatches = allMatches.filter(m => m.status === 'confirmed' || m.status === 'disputed')
-
-  const currentMatches = activeTab === 'upcoming' ? upcomingMatches : activeTab === 'confirm' ? confirmMatches : pastMatches
 
   // Fetch confirmable matches when the confirm tab is opened
   useEffect(() => {
@@ -289,6 +271,23 @@ export default function MatchesClient({ upcoming, past, userId, pouleName, hasCo
     }
     return () => { mounted = false }
   }, [activeTab])
+
+  // Combine provided lists and compute groups for the three tabs
+  const allMatches = [...upcoming, ...past]
+  const now = new Date()
+
+  const upcomingMatches = allMatches.filter(m => {
+    if (m.status === 'scheduled') return true
+    if (m.scheduled_date) {
+      const d = new Date(m.scheduled_date)
+      return d > now && m.status !== 'played' && m.status !== 'confirmed' && m.status !== 'disputed'
+    }
+    return false
+  })
+
+  const pastMatches = allMatches.filter(m => m.status === 'confirmed' || m.status === 'disputed')
+
+  const currentMatches = activeTab === 'upcoming' ? upcomingMatches : activeTab === 'confirm' ? confirmMatches : pastMatches
 
   return (
     <div className="space-y-8 max-w-5xl mx-auto">
