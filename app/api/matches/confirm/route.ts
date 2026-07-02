@@ -1,4 +1,5 @@
 import { createClient } from '@/utils/supabase/server'
+import { createClient as createSupabaseClient } from '@supabase/supabase-js'
 import { sendNotification } from '@/app/actions/notifications'
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
@@ -29,9 +30,13 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Je kunt je eigen score niet bevestigen.' }, { status: 403 })
   }
 
-  const { data: match, error: matchError } = await supabase
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
+  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY!
+  const adminDb = createSupabaseClient(supabaseUrl, serviceRoleKey)
+
+  const { data: match, error: matchError } = await adminDb
     .from('matches')
-    .select('id, poule_id, player1_id, player2_id, status')
+    .select('id, poule_id, player1_id, player2_id, team1_id, team2_id, status')
     .eq('id', score.match_id)
     .single()
 
@@ -43,7 +48,26 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Deze score kan op dit moment niet worden bevestigd.' }, { status: 400 })
   }
 
-  if (match.player1_id !== user.id && match.player2_id !== user.id) {
+  const isPlayerParticipant = match.player1_id === user.id || match.player2_id === user.id
+  let isTeamParticipant = false
+
+  if (!isPlayerParticipant && match.team1_id && match.team2_id) {
+    const { data: membership, error: membershipError } = await adminDb
+      .from('team_members')
+      .select('team_id')
+      .eq('player_id', user.id)
+      .in('team_id', [match.team1_id, match.team2_id])
+      .limit(1)
+      .maybeSingle()
+
+    if (membershipError) {
+      return NextResponse.json({ error: membershipError.message }, { status: 500 })
+    }
+
+    isTeamParticipant = Boolean(membership)
+  }
+
+  if (!isPlayerParticipant && !isTeamParticipant) {
     return NextResponse.json({ error: 'Geen toegang' }, { status: 403 })
   }
 
