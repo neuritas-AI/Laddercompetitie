@@ -41,7 +41,8 @@ export async function POST(request: NextRequest) {
     'Wedstrijd gepland',
     `Je wedstrijd is gepland op ${date} om ${time}${location ? ' te ' + location : ''}.`,
     'match_scheduled',
-    `/matches`
+    `/matches/${matchId}`,
+    matchId
   )
 
   return NextResponse.json({ success: true })

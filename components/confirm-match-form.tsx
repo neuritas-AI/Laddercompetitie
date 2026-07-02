@@ -94,7 +94,7 @@ export default function ConfirmMatchForm({ matchId, opponentName, scoreLine }: P
           className="bg-green-600 hover:bg-green-700 text-white font-bold"
           onClick={() => handleConfirm('approved')}
         >
-          {submitting ? 'Bezig...' : 'Score goedkeuren'}
+          {submitting ? 'Bezig...' : 'Score bevestigen'}
         </Button>
         <Button
           type="button"

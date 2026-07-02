@@ -86,7 +86,8 @@ export async function POST(request: NextRequest) {
     'Score ingegeven',
     'Je tegenstander heeft een score ingegeven. Controleer en bevestig de score.',
     'score_entered',
-    `/matches/${matchId}/confirm`
+    `/matches/${matchId}/confirm`,
+    matchId
   )
 
   return NextResponse.json({ success: true, scoreId: score.id })

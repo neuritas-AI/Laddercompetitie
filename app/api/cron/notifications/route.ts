@@ -29,7 +29,7 @@ export async function GET(request: Request) {
 
   if (!errTomorrow && matchesTomorrow) {
     for (const match of matchesTomorrow) {
-      const matchUrl = `/matches`
+      const matchUrl = `/matches/${match.id}`
       
       // Notify player 1
       await sendDbNotification(supabase, match.player1_id, 'Wedstrijd morgen', 'Vergeet je wedstrijd niet die morgen gepland staat!', 'match_tomorrow', matchUrl)
@@ -53,7 +53,7 @@ export async function GET(request: Request) {
 
   if (!errToday && matchesToday) {
     for (const match of matchesToday) {
-      const matchUrl = `/matches`
+      const matchUrl = `/matches/${match.id}`
       
       // Notify player 1
       await sendDbNotification(supabase, match.player1_id, 'Wedstrijd Vandaag!', 'Je hebt vandaag een wedstrijd gepland staan. Veel succes!', 'match_today', matchUrl)

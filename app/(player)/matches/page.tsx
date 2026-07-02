@@ -51,7 +51,7 @@ export default async function MatchesPage() {
     .from('matches')
     .select(matchSelect)
     .or(`player1_id.eq.${user!.id},player2_id.eq.${user!.id}`)
-    .in('status', ['confirmed', 'played'])
+    .in('status', ['confirmed', 'played', 'disputed'])
     .order('scheduled_date', { ascending: false })
 
   return (

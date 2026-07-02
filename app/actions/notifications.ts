@@ -3,12 +3,33 @@
 import { createClient } from '@/utils/supabase/server'
 import { revalidatePath } from 'next/cache'
 
+type NotificationType = 'match_tomorrow' | 'match_today' | 'score_entered' | 'match_scheduled' | 'score_confirmed'
+
+function normalizeNotificationLink(linkUrl: string | undefined, type: NotificationType, matchId?: string) {
+  if (linkUrl && linkUrl.startsWith('/') && !linkUrl.startsWith('//')) {
+    return linkUrl
+  }
+
+  switch (type) {
+    case 'score_entered':
+      return matchId ? `/matches/${matchId}/confirm` : '/matches'
+    case 'match_scheduled':
+    case 'match_tomorrow':
+    case 'match_today':
+    case 'score_confirmed':
+      return matchId ? `/matches/${matchId}` : '/matches'
+    default:
+      return '/matches'
+  }
+}
+
 export async function sendNotification(
   userId: string,
   title: string,
   message: string,
-  type: 'match_tomorrow' | 'match_today' | 'score_entered' | 'match_scheduled' | 'score_confirmed',
-  linkUrl?: string
+  type: NotificationType,
+  linkUrl?: string,
+  matchId?: string
 ) {
   const supabase = await createClient()
 
@@ -34,7 +55,7 @@ export async function sendNotification(
       title,
       message,
       type,
-      link_url: linkUrl,
+      link_url: normalizeNotificationLink(linkUrl, type, matchId),
       is_read: false
     })
 
