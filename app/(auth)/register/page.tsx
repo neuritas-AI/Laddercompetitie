@@ -20,18 +20,7 @@ export default async function RegisterPage({
   const isSuccess = params.success === '1'
 
   // Fetch open competitions from database
-  const { data: competitions } = await supabase
-    .from('competitions')
-    .select('id, name, type, season_year, status, max_participants, price')
-    .eq('status', 'open')
-    .order('season_year', { ascending: false })
-
-  const typeLabels: Record<string, string> = {
-    single_winter: 'Enkel Winter',
-    single_summer: 'Enkel Zomer',
-    double_winter: 'Dubbel Winter',
-    double_summer: 'Dubbel Zomer',
-  }
+  // No competition selection during registration. Competitie-inschrijving gebeurt later via de Competities-pagina.
 
   return (
     <Card className="w-full max-w-2xl shadow-xl border-0">
@@ -62,15 +51,7 @@ export default async function RegisterPage({
             </Link>
           </div>
         ) : (
-          <RegisterClient
-            competitions={(competitions ?? []).map(c => ({
-              id: c.id,
-              name: c.name,
-              label: `${typeLabels[c.type] ?? c.type} ${c.season_year}`,
-              price: Number(c.price ?? 0),
-            }))}
-            errorMsg={errorMsg}
-          />
+          <RegisterClient errorMsg={errorMsg} />
         )}
       </CardContent>
     </Card>

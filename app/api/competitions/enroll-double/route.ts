@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@/utils/supabase/server'
 import { getPaymentProvider } from '@/lib/payment'
+import { createClient as createSupabaseClient } from '@supabase/supabase-js'
 
 export async function POST(request: Request) {
   const supabase = await createClient()
@@ -35,18 +36,16 @@ export async function POST(request: Request) {
     }
   }
 
-  // Create or find a team with exactly these two players (order-insensitive)
-  const { data: existingTeams } = await supabase
-    .from('teams')
-    .select('id')
-    .maybeSingle()
+  // Create a new team for this competition and add both members.
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
+  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY!
+  const adminDb = createSupabaseClient(supabaseUrl, serviceRoleKey)
 
-  // Simple approach: create a new team always for enrollment to keep it straightforward
   const defaultName = teamName || `Team ${user.id.substring(0,4)} & ${partnerId.substring(0,4)}`
-  const { data: newTeam, error: teamError } = await supabase.from('teams').insert({ name: defaultName }).select().single()
+  const { data: newTeam, error: teamError } = await adminDb.from('teams').insert({ competition_id: competitionId, name: defaultName }).select().single()
   if (teamError || !newTeam) return NextResponse.json({ error: teamError?.message || 'Kon team niet aanmaken' }, { status: 500 })
 
-  const { error: membersError } = await supabase.from('team_members').insert([
+  const { error: membersError } = await adminDb.from('team_members').insert([
     { team_id: newTeam.id, player_id: user.id },
     { team_id: newTeam.id, player_id: partnerId },
   ])
