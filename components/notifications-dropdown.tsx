@@ -180,13 +180,47 @@ export default function NotificationsDropdown({
 
                     <div className="flex-1 min-w-0">
                       {n.link_url ? (
-                        <Link
-                          href={n.link_url}
-                          onClick={() => { handleMarkAsRead(n.id); setOpen(false) }}
-                          className="font-semibold text-sm hover:underline hover:text-primary leading-tight block mb-1"
-                        >
-                          {n.title}
-                        </Link>
+                        // If the link contains an 'undefined' placeholder, resolve it via API before navigating
+                        n.link_url.includes('undefined') ? (
+                          <a
+                            href="#"
+                            onClick={async (e) => {
+                              e.preventDefault()
+                              try {
+                                const res = await fetch('/api/notifications/resolve', {
+                                  method: 'POST',
+                                  headers: { 'Content-Type': 'application/json' },
+                                  body: JSON.stringify({ notificationId: n.id }),
+                                })
+                                const data = await res.json()
+                                if (data?.url) {
+                                  handleMarkAsRead(n.id)
+                                  setOpen(false)
+                                  window.location.href = data.url
+                                } else {
+                                  handleMarkAsRead(n.id)
+                                  setOpen(false)
+                                  window.location.href = '/matches'
+                                }
+                              } catch (err) {
+                                handleMarkAsRead(n.id)
+                                setOpen(false)
+                                window.location.href = '/matches'
+                              }
+                            }}
+                            className="font-semibold text-sm hover:underline hover:text-primary leading-tight block mb-1"
+                          >
+                            {n.title}
+                          </a>
+                        ) : (
+                          <Link
+                            href={n.link_url}
+                            onClick={() => { handleMarkAsRead(n.id); setOpen(false) }}
+                            className="font-semibold text-sm hover:underline hover:text-primary leading-tight block mb-1"
+                          >
+                            {n.title}
+                          </Link>
+                        )
                       ) : (
                         <p className="font-semibold text-sm leading-tight mb-1">{n.title}</p>
                       )}
