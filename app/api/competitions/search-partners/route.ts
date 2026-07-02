@@ -59,7 +59,8 @@ export async function GET(request: Request) {
 
   const excludedArray = Array.from(excludedIds)
   if (excludedArray.length > 0) {
-    searchQuery = searchQuery.not('id', 'in', excludedArray)
+    const exclusionList = `(${excludedArray.map((id) => `'${id}'`).join(',')})`
+    searchQuery = searchQuery.not('id', 'in', exclusionList)
   }
 
   if (query) {
