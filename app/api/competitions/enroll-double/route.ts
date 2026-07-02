@@ -23,7 +23,7 @@ export async function POST(request: Request) {
   if (!partner) return NextResponse.json({ error: 'Gekozen partner niet gevonden of niet actief' }, { status: 404 })
 
   // Ensure neither player is already in a team registered for this competition
-  const { data: existing } = await supabase.from('team_members').select('team_id, player_id, team_id as t').or(`player_id.eq.${user.id},player_id.eq.${partnerId}`)
+  const { data: existing } = await supabase.from('team_members').select('team_id, player_id').or(`player_id.eq.${user.id},player_id.eq.${partnerId}`)
 
   // Check if any of these teams is already registered for this competition
   if (existing && existing.length > 0) {
