@@ -1,5 +1,6 @@
 import { notFound } from 'next/navigation'
 import { createClient } from '@/utils/supabase/server'
+import { formatDateInBrussels } from '@/lib/brussels'
 
 export default async function MatchDetailPage({ params }: { params: { matchId: string } }) {
   const supabase = await createClient()
@@ -50,7 +51,7 @@ export default async function MatchDetailPage({ params }: { params: { matchId: s
         </p>
         {match.scheduled_date && (
           <p className="mt-2 text-sm text-muted-foreground">
-            Gepland: {new Date(match.scheduled_date).toLocaleString('nl-BE')}
+            Gepland: {formatDateInBrussels(match.scheduled_date, { day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
           </p>
         )}
         {match.location && (

@@ -5,6 +5,7 @@ import { Calendar, Trophy, ChevronRight, PenSquare, User } from 'lucide-react'
 import Link from 'next/link'
 import { createClient } from '@/utils/supabase/server'
 import { getDisplayName } from '@/lib/profile'
+import { formatDateInBrussels } from '@/lib/brussels'
 import { REGISTRATION_STATUS_LABELS } from '@/lib/competitions'
 
 export default async function PlayerDashboard() {
@@ -100,7 +101,7 @@ export default async function PlayerDashboard() {
 
   const formatDate = (d: string | null) => {
     if (!d) return null
-    return new Date(d).toLocaleDateString('nl-BE', { weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })
+    return formatDateInBrussels(d, { weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })
   }
 
   return (

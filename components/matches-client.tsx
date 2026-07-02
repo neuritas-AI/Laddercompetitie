@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useTransition } from 'react'
+import { formatDateInBrussels } from '@/lib/brussels'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -55,7 +56,7 @@ export default function MatchesClient({ upcoming, past, userId, pouleName, hasCo
 
   const formatDate = (d: string | null) => {
     if (!d) return null
-    return new Date(d).toLocaleDateString('nl-BE', { weekday: 'long', day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' })
+    return formatDateInBrussels(d, { weekday: 'long', day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' })
   }
 
   const handleSchedule = async (e: React.FormEvent) => {

@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { normalizeNotificationLink } from '@/lib/notifications'
+import { getStartOfBrusselsDay, getEndOfBrusselsDay } from '@/lib/brussels'
 
 // We use the admin client to bypass RLS since this is a background job
 export async function GET(request: Request) {
@@ -15,18 +16,14 @@ export async function GET(request: Request) {
   const supabase = createClient(supabaseUrl, serviceRoleKey)
 
   // 1. Find matches scheduled for tomorrow
-  const tomorrow = new Date()
-  tomorrow.setDate(tomorrow.getDate() + 1)
-  tomorrow.setHours(0, 0, 0, 0)
-  
-  const endOfTomorrow = new Date(tomorrow)
-  endOfTomorrow.setHours(23, 59, 59, 999)
+  const tomorrowStart = getStartOfBrusselsDay(new Date(Date.now() + 24 * 60 * 60 * 1000))
+  const tomorrowEnd = getEndOfBrusselsDay(new Date(Date.now() + 24 * 60 * 60 * 1000))
 
   const { data: matchesTomorrow, error: errTomorrow } = await supabase
     .from('matches')
     .select('id, player1_id, player2_id, scheduled_date')
-    .gte('scheduled_date', tomorrow.toISOString())
-    .lte('scheduled_date', endOfTomorrow.toISOString())
+    .gte('scheduled_date', tomorrowStart.toISOString())
+    .lte('scheduled_date', tomorrowEnd.toISOString())
 
   if (!errTomorrow && matchesTomorrow) {
     for (const match of matchesTomorrow) {
@@ -40,17 +37,14 @@ export async function GET(request: Request) {
   }
 
   // 2. Find matches scheduled for today
-  const today = new Date()
-  today.setHours(0, 0, 0, 0)
-  
-  const endOfToday = new Date(today)
-  endOfToday.setHours(23, 59, 59, 999)
+  const todayStart = getStartOfBrusselsDay(new Date())
+  const todayEnd = getEndOfBrusselsDay(new Date())
 
   const { data: matchesToday, error: errToday } = await supabase
     .from('matches')
     .select('id, player1_id, player2_id, scheduled_date')
-    .gte('scheduled_date', today.toISOString())
-    .lte('scheduled_date', endOfToday.toISOString())
+    .gte('scheduled_date', todayStart.toISOString())
+    .lte('scheduled_date', todayEnd.toISOString())
 
   if (!errToday && matchesToday) {
     for (const match of matchesToday) {

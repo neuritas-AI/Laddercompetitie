@@ -1,5 +1,6 @@
 import { createClient } from '@/utils/supabase/server'
 import { sendNotification } from '@/app/actions/notifications'
+import { parseBrusselsLocalDateTime } from '@/lib/brussels'
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 
@@ -21,7 +22,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Geen toegang' }, { status: 403 })
   }
 
-  const scheduledDate = new Date(`${date}T${time}`)
+  const scheduledDate = parseBrusselsLocalDateTime(date, time)
 
   const { error } = await supabase
     .from('matches')
