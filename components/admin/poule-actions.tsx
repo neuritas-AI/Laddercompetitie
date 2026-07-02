@@ -103,7 +103,7 @@ export function PouleActions({ poule, competitions, poules }: { poule: any; comp
             </div>
             <div className="space-y-2">
               <Label htmlFor={`poule-competition-${poule.id}`}>Competitie</Label>
-              <Select name="competition_id" value={formState.competition_id} onValueChange={(value) => setFormState({ ...formState, competition_id: value })}>
+              <Select name="competition_id" value={formState.competition_id} onValueChange={(value: unknown) => setFormState({ ...formState, competition_id: String(value ?? '') })}>
                 <SelectTrigger>
                   <SelectValue placeholder="Kies competitie" />
                 </SelectTrigger>
@@ -136,7 +136,7 @@ export function PouleActions({ poule, competitions, poules }: { poule: any; comp
               <p className="text-sm text-muted-foreground">Deze poule bevat nog spelers of teams. Kies een andere actieve poule om de inhoud naartoe te verplaatsen.</p>
               <div className="space-y-2">
                 <Label htmlFor={`destination-poule-${poule.id}`}>Bestemming poule</Label>
-                <Select value={destinationPouleId} onValueChange={(value) => setDestinationPouleId(value ?? '')}>
+                <Select value={destinationPouleId} onValueChange={(value: unknown) => setDestinationPouleId(String(value ?? ''))}>
                   <SelectTrigger id={`destination-poule-${poule.id}`}>
                     <SelectValue placeholder="Kies poule" />
                   </SelectTrigger>

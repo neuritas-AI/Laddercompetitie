@@ -42,7 +42,7 @@ export default function MovePlayerDialog({ player, poules, currentPouleId }: { p
         <div className="space-y-4">
           <div className="space-y-2">
             <Label>Nieuwe poule</Label>
-            <Select value={selectedPoule} onValueChange={(value) => setSelectedPoule(value ?? '')}>
+            <Select value={selectedPoule} onValueChange={(value: unknown) => setSelectedPoule(String(value ?? ''))}>
               <SelectTrigger>
                 <SelectValue placeholder="Kies poule" />
               </SelectTrigger>

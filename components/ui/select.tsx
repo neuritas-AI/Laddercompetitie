@@ -6,7 +6,87 @@ import { Select as SelectPrimitive } from "@base-ui/react/select"
 import { cn } from "@/lib/utils"
 import { ChevronDownIcon, CheckIcon, ChevronUpIcon } from "lucide-react"
 
-const Select = SelectPrimitive.Root
+function getTextContent(children: React.ReactNode): string {
+  if (typeof children === "string" || typeof children === "number") {
+    return String(children)
+  }
+
+  if (Array.isArray(children)) {
+    return children.map(getTextContent).join("")
+  }
+
+  if (React.isValidElement<{ children?: React.ReactNode }>(children)) {
+    return getTextContent(children.props.children)
+  }
+
+  return ""
+}
+
+function collectSelectItemLabels(
+  children: React.ReactNode,
+  labels: Map<string, string>
+) {
+  React.Children.forEach(children, (child) => {
+    if (!React.isValidElement<{ value?: unknown; children?: React.ReactNode }>(child)) {
+      return
+    }
+
+    if (child.type === SelectItem) {
+      const value = child.props.value
+      if (value != null) {
+        labels.set(String(value), getTextContent(child.props.children))
+      }
+      return
+    }
+
+    if (child.props?.children) {
+      collectSelectItemLabels(child.props.children, labels)
+    }
+  })
+}
+
+function Select({
+  children,
+  itemToStringLabel,
+  ...props
+}: React.ComponentProps<typeof SelectPrimitive.Root>) {
+  const labels = React.useMemo(() => {
+    const nextLabels = new Map<string, string>()
+    collectSelectItemLabels(children, nextLabels)
+    return nextLabels
+  }, [children])
+
+  const resolveItemToStringLabel = React.useCallback(
+    (item: unknown) => {
+      if (typeof itemToStringLabel === "function") {
+        const customLabel = itemToStringLabel(item)
+        if (customLabel != null) {
+          return customLabel
+        }
+      }
+
+      if (typeof item === "string" || typeof item === "number") {
+        return labels.get(String(item)) ?? String(item)
+      }
+
+      if (item && typeof item === "object" && "value" in item && item.value != null) {
+        return labels.get(String(item.value)) ?? String(item.value)
+      }
+
+      return ""
+    },
+    [itemToStringLabel, labels]
+  )
+
+  return (
+    <SelectPrimitive.Root
+      {...props}
+      itemToStringLabel={resolveItemToStringLabel}
+    >
+      {children}
+    </SelectPrimitive.Root>
+  )
+}
 
 function SelectGroup({ className, ...props }: SelectPrimitive.Group.Props) {
   return (
@@ -111,11 +191,19 @@ function SelectLabel({
 function SelectItem({
   className,
   children,
+  label: labelProp,
   ...props
 }: SelectPrimitive.Item.Props) {
+  const resolvedLabel =
+    labelProp ??
+    (typeof children === "string" || typeof children === "number"
+      ? String(children)
+      : undefined)
+
   return (
     <SelectPrimitive.Item
       data-slot="select-item"
+      label={resolvedLabel}
       className={cn(
         "relative flex w-full cursor-default items-center gap-1.5 rounded-md py-1 pr-8 pl-1.5 text-sm outline-hidden select-none focus:bg-accent focus:text-accent-foreground not-data-[variant=destructive]:focus:**:text-accent-foreground data-disabled:pointer-events-none data-disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4 *:[span]:last:flex *:[span]:last:items-center *:[span]:last:gap-2",
         className
