@@ -1,13 +1,15 @@
 "use client"
 
 import { useEffect } from 'react'
-import { useRouter } from 'next/navigation'
+import { useRouter, useParams } from 'next/navigation'
 
-export default function MatchConfirmRedirectPage({ params }: { params: { matchId: string } }) {
+export default function MatchConfirmRedirectPage() {
   const router = useRouter()
+  const params = useParams() as { matchId?: string }
 
   useEffect(() => {
-    const id = params.matchId
+    const id = params?.matchId
+    if (!id) return
     router.replace(`/matches/${id}/confirm`)
   }, [params, router])
 

@@ -27,3 +27,17 @@ export async function createClient() {
     }
   )
 }
+
+// Safe helper that returns the supabase client and a user when possible.
+export async function createClientWithUser() {
+  const supabase = await createClient()
+  try {
+    const res = await supabase.auth.getUser()
+    // result shape may include error
+    const user = res?.data?.user ?? null
+    return { supabase, user, authError: res?.error ?? null }
+  } catch (err) {
+    // If auth throws (invalid refresh token etc.), return null user but keep client
+    return { supabase, user: null, authError: err }
+  }
+}

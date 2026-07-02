@@ -1,13 +1,15 @@
 "use client"
 
 import { useEffect } from 'react'
-import { useRouter } from 'next/navigation'
+import { useRouter, useParams } from 'next/navigation'
 
-export default function MatchRedirectPage({ params }: { params: { matchId: string } }) {
+export default function MatchRedirectPage() {
   const router = useRouter()
+  const params = useParams() as { matchId?: string }
 
   useEffect(() => {
-    const id = params.matchId
+    const id = params?.matchId
+    if (!id) return
     // Replace with the real match detail route
     router.replace(`/matches/${id}`)
   }, [params, router])

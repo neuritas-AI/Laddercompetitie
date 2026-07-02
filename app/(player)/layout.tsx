@@ -1,10 +1,23 @@
-import { createClient } from '@/utils/supabase/server'
+import { createClientWithUser } from '@/utils/supabase/server'
 import { getDisplayName } from '@/lib/profile'
 import PlayerLayoutClient from '@/components/player-layout-client'
 
 export default async function PlayerLayout({ children }: { children: React.ReactNode }) {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const { supabase, user, authError } = await createClientWithUser()
+
+  // If an auth error occurred (invalid/missing refresh token), treat as not authenticated
+  if (authError || !user) {
+    return (
+      <PlayerLayoutClient
+        displayName={'Profiel'}
+        avatarUrl={null}
+        pouleLabel={null}
+        notifications={[]}
+      >
+        {children}
+      </PlayerLayoutClient>
+    )
+  }
 
   let profile = null
   let pouleInfo = null
