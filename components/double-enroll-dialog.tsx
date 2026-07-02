@@ -113,17 +113,51 @@ export default function DoubleEnrollDialog({ competitionId, open, onOpenChange }
               className="w-full"
             />
             <div className="relative">
-              <select
-                value={partnerId ?? ''}
-                onChange={(e) => setPartnerId(e.target.value)}
-                className="w-full rounded-lg border p-2 mt-2"
-                size={Math.min(players.length || 3, 6)}
-              >
-                <option value="">Kies partner</option>
-                {players.map(p => (
-                  <option key={p.id} value={p.id}>{p.first_name} {p.last_name}</option>
-                ))}
-              </select>
+              {!partnerId ? (
+                <>
+                  <select
+                    value={partnerId ?? ''}
+                    onChange={(e) => {
+                      const val = e.target.value
+                      setPartnerId(val)
+                      // hide list after selection
+                      const sel = players.find((p: any) => p.id === val)
+                      setPlayers(sel ? [sel] : [])
+                    }}
+                    className="w-full rounded-lg border p-2 mt-2"
+                    size={Math.min(players.length || 3, 6)}
+                  >
+                    <option value="">Kies partner</option>
+                    {players.map((p: any) => (
+                      <option key={p.id} value={p.id}>{p.first_name} {p.last_name}</option>
+                    ))}
+                  </select>
+                </>
+              ) : (
+                (() => {
+                  const selected = players.find((p: any) => p.id === partnerId)
+                  const name = selected ? `${selected.first_name} ${selected.last_name}` : 'Geselecteerde partner'
+                  return (
+                    <div className="flex items-center justify-between gap-2 mt-2">
+                      <div className="flex-1 px-3 py-2 rounded-lg border bg-muted/10">{name}</div>
+                      <div className="flex gap-2">
+                        <button type="button" className="text-sm text-primary font-medium underline" onClick={() => {
+                          // allow changing partner: reopen search
+                          setPartnerId(null)
+                          setQuery('')
+                          // reload first page
+                          loadPlayers('', 1)
+                        }}>Wijzig</button>
+                        <button type="button" className="text-sm text-muted-foreground" onClick={() => {
+                          setPartnerId(null)
+                          setQuery('')
+                          setPlayers([])
+                        }}>✕</button>
+                      </div>
+                    </div>
+                  )
+                })()
+              )}
             </div>
             {loading && (
               <p className="text-sm text-muted-foreground">Zoeken...</p>

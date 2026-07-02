@@ -65,6 +65,7 @@ export default function CompetitionsClient({
   const [selectedCompetition, setSelectedCompetition] = useState<CompetitionItem | null>(null)
   const [doubleOpen, setDoubleOpen] = useState(false)
   const [paymentMsg, setPaymentMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
+  const [registeredIds, setRegisteredIds] = useState<Set<string>>(new Set(myRegistrations.map(r => r.id)))
 
   const registeredIds = new Set(myRegistrations.map(r => r.id))
   const availableCompetitions = openCompetitions.filter(c => !registeredIds.has(c.id))
@@ -83,6 +84,14 @@ export default function CompetitionsClient({
       const result = await enrollInCompetition(competition.id)
       if (!result.success) {
         setPaymentMsg({ type: 'error', text: result.error ?? 'Inschrijving mislukt.' })
+      } else {
+        setRegisteredIds(prev => new Set([...Array.from(prev), competition.id]))
+        setPaymentMsg({ type: 'success', text: 'Inschrijving voltooid!' })
+        setTimeout(() => {
+          setPaymentOpen(false)
+          setSelectedCompetition(null)
+          router.refresh()
+        }, 800)
       }
     })
   }
@@ -151,15 +160,22 @@ export default function CompetitionsClient({
               </div>
             </div>
 
-            {showEnrollButton && (
-              <Button
-                onClick={() => handleEnroll(competition)}
-                disabled={isPending}
-                className="font-bold rounded-xl h-11 px-6 shrink-0"
-              >
-                Schrijf mij in
-              </Button>
-            )}
+            {showEnrollButton && (() => {
+              const isRegistered = registeredIds.has(competition.id)
+              return isRegistered ? (
+                <span className="inline-flex items-center gap-2 bg-green-100 text-green-800 text-sm font-bold uppercase px-3 py-2 rounded-xl">
+                  <CheckCircle2 className="w-4 h-4" /> Ingeschreven
+                </span>
+              ) : (
+                <Button
+                  onClick={() => handleEnroll(competition)}
+                  disabled={isPending}
+                  className="font-bold rounded-xl h-11 px-6 shrink-0"
+                >
+                  Schrijf mij in
+                </Button>
+              )
+            })()}
           </div>
         </CardContent>
       </Card>

@@ -37,7 +37,15 @@ export default function ConfirmMatchForm({ matchId, opponentName, scoreLine }: P
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || 'Fout bij bevestigen')
       setSuccess(action === 'approved' ? 'Score goedgekeurd!' : 'Score betwist. De wedstrijd wordt opnieuw beoordeeld.' )
-      setTimeout(() => router.push('/matches'), 1800)
+      // Broadcast optimistic update so lists can remove this match immediately
+      try {
+        const bc = new BroadcastChannel('matches')
+        bc.postMessage({ type: action === 'approved' ? 'confirmed' : 'disputed', matchId })
+        bc.close()
+      } catch (e) {
+        // ignore if BroadcastChannel not supported
+      }
+      setTimeout(() => router.push('/matches'), 800)
     } catch (err: any) {
       setError(err.message)
     } finally {

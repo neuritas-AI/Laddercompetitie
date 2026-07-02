@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useTransition } from 'react'
+import { useState, useTransition, useEffect } from 'react'
 import { formatDateInBrussels } from '@/lib/brussels'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -8,7 +8,7 @@ import { Label } from '@/components/ui/label'
 import { Calendar, MapPin, Clock, CheckCircle2, AlertCircle, PenSquare, ArrowLeft, MoreVertical, X } from 'lucide-react'
 import ScoreForm from '@/components/score-form'
 
-type Tab = 'upcoming' | 'past'
+type Tab = 'upcoming' | 'confirm' | 'past'
 
 interface Match {
   id: string
@@ -35,6 +35,8 @@ interface Props {
 
 export default function MatchesClient({ upcoming, past, userId, pouleName, hasCompetition }: Props) {
   const [activeTab, setActiveTab] = useState<Tab>('upcoming')
+  const [confirmMatches, setConfirmMatches] = useState<Match[]>([])
+  const [loadingConfirm, setLoadingConfirm] = useState(false)
   const [activeMatchId, setActiveMatchId] = useState<string | null>(null)
   const [showScore, setShowScore] = useState(false)
   const [scoreMatchId, setScoreMatchId] = useState<string | null>(null)
@@ -233,7 +235,54 @@ export default function MatchesClient({ upcoming, past, userId, pouleName, hasCo
     )
   }
 
-  const currentMatches = activeTab === 'upcoming' ? upcoming : past
+  // Combine provided lists and compute groups for the three tabs
+  const allMatches = [...upcoming, ...past]
+  const now = new Date()
+
+  const upcomingMatches = allMatches.filter(m => {
+    if (m.status === 'scheduled') return true
+    if (m.scheduled_date) {
+      const d = new Date(m.scheduled_date)
+      return d > now && m.status !== 'played' && m.status !== 'confirmed' && m.status !== 'disputed'
+    }
+    return false
+  })
+
+  // confirmMatches state will be populated from server when user opens the confirm tab
+  const pastMatches = allMatches.filter(m => m.status === 'confirmed' || m.status === 'disputed')
+
+  const currentMatches = activeTab === 'upcoming' ? upcomingMatches : activeTab === 'confirm' ? confirmMatches : pastMatches
+
+  // Fetch confirmable matches when the confirm tab is opened
+  useEffect(() => {
+    let mounted = true
+    if (activeTab !== 'confirm') return
+    setLoadingConfirm(true)
+    fetch('/api/matches/pending')
+      .then(r => r.json())
+      .then(data => {
+        if (!mounted) return
+        setConfirmMatches(data.matches ?? [])
+      })
+      .catch(() => setConfirmMatches([]))
+      .finally(() => setLoadingConfirm(false))
+
+    // Listen for optimistic updates from other pages (confirm form)
+    let bc: BroadcastChannel | null = null
+    try {
+      bc = new BroadcastChannel('matches')
+      bc.onmessage = (e) => {
+        const msg = e.data as any
+        if (!msg || !msg.matchId) return
+        if (msg.type === 'confirmed' || msg.type === 'disputed') {
+          setConfirmMatches(prev => prev.filter(m => m.id !== msg.matchId))
+        }
+      }
+    } catch (e) {
+      // ignore if not supported
+    }
+    return () => { mounted = false }
+  }, [activeTab])
 
   return (
     <div className="space-y-8 max-w-5xl mx-auto">
@@ -243,7 +292,7 @@ export default function MatchesClient({ upcoming, past, userId, pouleName, hasCo
           <p className="text-muted-foreground font-medium">Je volledige overzicht en planning.</p>
         </div>
         <div className="flex bg-muted/30 p-1.5 rounded-[1.5rem] w-fit shadow-inner">
-          {(['upcoming', 'past'] as Tab[]).map((tab) => (
+          {(['upcoming', 'confirm', 'past'] as Tab[]).map((tab) => (
             <button
               key={tab}
               onClick={() => setActiveTab(tab)}
@@ -253,7 +302,7 @@ export default function MatchesClient({ upcoming, past, userId, pouleName, hasCo
                   : 'text-muted-foreground hover:text-foreground'
               }`}
             >
-              {tab === 'upcoming' ? 'Aankomend' : 'Afgelopen'}
+              {tab === 'upcoming' ? 'Aankomend' : tab === 'confirm' ? 'Score bevestigen' : 'Afgelopen'}
             </button>
           ))}
         </div>
