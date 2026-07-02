@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
-import { normalizeNotificationLink } from '@/app/actions/notifications'
+import { normalizeNotificationLink } from '@/lib/notifications'
 
 // We use the admin client to bypass RLS since this is a background job
 export async function GET(request: Request) {
