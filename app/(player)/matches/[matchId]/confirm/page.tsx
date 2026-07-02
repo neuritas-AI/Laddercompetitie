@@ -1,4 +1,4 @@
-import { notFound } from 'next/navigation'
+import { notFound, redirect } from 'next/navigation'
 import { createClient } from '@/utils/supabase/server'
 import ConfirmMatchForm from '@/components/confirm-match-form'
 
@@ -13,7 +13,7 @@ export default async function MatchConfirmPage({ params }: Params) {
   const { data: { user } } = await supabase.auth.getUser()
 
   if (!user) {
-    notFound()
+    redirect('/login')
   }
 
   const { data: match, error: matchError } = await supabase
@@ -29,7 +29,14 @@ export default async function MatchConfirmPage({ params }: Params) {
   }
 
   if (match.player1_id !== user.id && match.player2_id !== user.id) {
-    notFound()
+    return (
+      <div className="min-h-[60vh] flex items-center justify-center p-8">
+        <div className="rounded-[2rem] border border-border/50 bg-card p-10 text-center shadow-sm">
+          <h1 className="text-3xl font-bold">Geen toegang</h1>
+          <p className="mt-4 text-muted-foreground">Je hebt geen toegang om deze score te bevestigen.</p>
+        </div>
+      </div>
+    )
   }
 
   const player1 = Array.isArray(match.player1) ? match.player1[0] : match.player1

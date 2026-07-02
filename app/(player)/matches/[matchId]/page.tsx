@@ -1,4 +1,4 @@
-import { notFound } from 'next/navigation'
+import { notFound, redirect } from 'next/navigation'
 import { createClient } from '@/utils/supabase/server'
 import { formatDateInBrussels } from '@/lib/brussels'
 
@@ -7,7 +7,8 @@ export default async function MatchDetailPage({ params }: { params: { matchId: s
   const { data: { user } } = await supabase.auth.getUser()
 
   if (!user) {
-    notFound()
+    // If not authenticated, redirect to login instead of returning 404
+    redirect('/login')
   }
 
   const { data: match, error } = await supabase
@@ -33,7 +34,14 @@ export default async function MatchDetailPage({ params }: { params: { matchId: s
   }
 
   if (match.player1_id !== user.id && match.player2_id !== user.id) {
-    notFound()
+    return (
+      <div className="min-h-[60vh] flex items-center justify-center p-8">
+        <div className="rounded-[2rem] border border-border/50 bg-card p-10 text-center shadow-sm">
+          <h1 className="text-3xl font-bold">Geen toegang</h1>
+          <p className="mt-4 text-muted-foreground">Je hebt geen toegang tot deze wedstrijd.</p>
+        </div>
+      </div>
+    )
   }
 
   const isPlayer1 = match.player1_id === user.id
