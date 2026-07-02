@@ -15,6 +15,7 @@ import {
 import { Trophy, Calendar, Loader2, CreditCard, CheckCircle2, AlertCircle } from 'lucide-react'
 import { enrollInCompetition, completeTestPayment } from '@/app/actions/competitions'
 import { REGISTRATION_STATUS_LABELS } from '@/lib/competitions'
+import DoubleEnrollDialog from './double-enroll-dialog'
 
 export type CompetitionItem = {
   id: string
@@ -62,6 +63,7 @@ export default function CompetitionsClient({
   const [isPending, startTransition] = useTransition()
   const [paymentOpen, setPaymentOpen] = useState(false)
   const [selectedCompetition, setSelectedCompetition] = useState<CompetitionItem | null>(null)
+  const [doubleOpen, setDoubleOpen] = useState(false)
   const [paymentMsg, setPaymentMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
 
   const registeredIds = new Set(myRegistrations.map(r => r.id))
@@ -70,6 +72,11 @@ export default function CompetitionsClient({
   function handleEnroll(competition: CompetitionItem) {
     setSelectedCompetition(competition)
     setPaymentMsg(null)
+    if (competition.type.startsWith('double')) {
+      setDoubleOpen(true)
+      return
+    }
+
     setPaymentOpen(true)
 
     startTransition(async () => {
@@ -246,6 +253,9 @@ export default function CompetitionsClient({
           </div>
         </DialogContent>
       </Dialog>
+      {selectedCompetition && (
+        <DoubleEnrollDialog competitionId={selectedCompetition.id} open={doubleOpen} onOpenChange={setDoubleOpen} />
+      )}
     </div>
   )
 }
