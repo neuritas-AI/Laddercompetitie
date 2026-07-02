@@ -25,7 +25,14 @@ export default async function MatchConfirmPage({ params }: Params) {
     .single()
 
   if (matchError || !match) {
-    notFound()
+    return (
+      <div className="min-h-[60vh] flex items-center justify-center p-8">
+        <div className="rounded-[2rem] border border-border/50 bg-card p-10 text-center shadow-sm">
+          <h1 className="text-3xl font-bold">Wedstrijd niet gevonden</h1>
+          <p className="mt-4 text-muted-foreground">De wedstrijd bestaat niet of is verwijderd.</p>
+        </div>
+      </div>
+    )
   }
 
   if (match.player1_id !== user.id && match.player2_id !== user.id) {

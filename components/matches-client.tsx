@@ -181,7 +181,7 @@ export default function MatchesClient({ upcoming, past, userId, pouleName, hasCo
             )}
             {isPendingConfirmation && (
               <a
-                href={`/matches/${match.id}/confirm`}
+                href={`/matches/redirect/${match.id}/confirm`}
                 className="inline-flex items-center justify-center rounded-xl border border-primary px-4 py-3 text-sm font-bold text-primary transition hover:bg-primary/10"
               >
                 Score bevestigen
