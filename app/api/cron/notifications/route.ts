@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
+import { normalizeNotificationLink } from '@/app/actions/notifications'
 
 // We use the admin client to bypass RLS since this is a background job
 export async function GET(request: Request) {
@@ -79,7 +80,7 @@ async function sendDbNotification(supabase: any, userId: string, title: string, 
     title,
     message,
     type,
-    link_url: linkUrl,
+    link_url: normalizeNotificationLink(linkUrl, type as any),
     is_read: false
   })
 }

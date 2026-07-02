@@ -178,9 +178,22 @@ export default function MatchesClient({ upcoming, past, userId, pouleName, hasCo
                 <PenSquare className="w-4 h-4 mr-2" /> Score
               </Button>
             )}
-            {isPast && (
+            {isPendingConfirmation && (
+              <a
+                href={`/matches/${match.id}/confirm`}
+                className="inline-flex items-center justify-center rounded-xl border border-primary px-4 py-3 text-sm font-bold text-primary transition hover:bg-primary/10"
+              >
+                Score bevestigen
+              </a>
+            )}
+            {isConfirmed && (
               <span className="bg-green-100 text-green-800 text-[10px] uppercase px-3 py-1.5 rounded-full font-bold flex items-center gap-1.5">
                 <CheckCircle2 className="h-4 w-4" /> Bevestigd
+              </span>
+            )}
+            {isDisputed && (
+              <span className="bg-red-100 text-red-600 text-[10px] uppercase px-3 py-1.5 rounded-full font-bold flex items-center gap-1.5">
+                <AlertCircle className="h-4 w-4" /> Betwist
               </span>
             )}
           </div>

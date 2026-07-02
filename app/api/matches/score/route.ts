@@ -64,6 +64,18 @@ export async function POST(request: NextRequest) {
 
   if (scoreError) return NextResponse.json({ error: scoreError.message }, { status: 500 })
 
+  // Auto-confirm the submitted score on behalf of the submitting player
+  const { error: autoConfirmError } = await supabase
+    .from('match_confirmations')
+    .insert({
+      score_id: score.id,
+      confirmed_by: user.id,
+      action: 'approved',
+      note: null,
+    })
+
+  if (autoConfirmError) return NextResponse.json({ error: autoConfirmError.message }, { status: 500 })
+
   // Update match with entered score and mark as played pending confirmation
   const { error: matchUpdateError } = await supabase
     .from('matches')

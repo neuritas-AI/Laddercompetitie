@@ -5,7 +5,7 @@ import { revalidatePath } from 'next/cache'
 
 type NotificationType = 'match_tomorrow' | 'match_today' | 'score_entered' | 'match_scheduled' | 'score_confirmed'
 
-function normalizeNotificationLink(linkUrl: string | undefined, type: NotificationType, matchId?: string) {
+export function normalizeNotificationLink(linkUrl: string | undefined, type: NotificationType, matchId?: string) {
   if (linkUrl && linkUrl.startsWith('/') && !linkUrl.startsWith('//')) {
     return linkUrl
   }

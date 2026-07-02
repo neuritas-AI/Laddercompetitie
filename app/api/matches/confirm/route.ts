@@ -54,6 +54,14 @@ export async function POST(request: NextRequest) {
 
   if (confirmationsError) return NextResponse.json({ error: confirmationsError.message }, { status: 500 })
 
+  const hasSubmittedPlayerConfirmation = existingConfirmations?.some(
+    (confirmation: any) => confirmation.confirmed_by === score.submitted_by
+  )
+
+  if (!hasSubmittedPlayerConfirmation) {
+    return NextResponse.json({ error: 'Deze score is nog niet door de inzender bevestigd.', status: 400 }, { status: 400 })
+  }
+
   if (existingConfirmations?.some((confirmation: any) => confirmation.confirmed_by === user.id)) {
     return NextResponse.json({ error: 'Je hebt deze score al verwerkt.' }, { status: 409 })
   }
@@ -122,7 +130,7 @@ export async function POST(request: NextRequest) {
         'Score bevestigd',
         'Je tegenstander heeft de score goedgekeurd.',
         'score_confirmed',
-        '/matches',
+        `/matches/${match.id}`,
         match.id
       )
     }
@@ -146,7 +154,7 @@ export async function POST(request: NextRequest) {
       'Score betwist',
       'Je tegenstander heeft de ingegeven score betwist. Neem contact op om de wedstrijd te herplannen of opnieuw te spelen.',
       'score_entered',
-      '/matches',
+      `/matches/${match.id}`,
       match.id
     )
   }
