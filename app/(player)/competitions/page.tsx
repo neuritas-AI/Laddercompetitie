@@ -1,9 +1,11 @@
+import { redirect } from 'next/navigation'
 import { createClient } from '@/utils/supabase/server'
 import CompetitionsClient from '@/components/competitions-client'
 
 export default async function CompetitionsPage() {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return redirect('/login')
 
   const { data: openCompetitions } = await supabase
     .from('competitions')
@@ -19,14 +21,42 @@ export default async function CompetitionsPage() {
         id, name, type, season_year, start_date, end_date, price, status
       )
     `)
-    .eq('player_id', user!.id)
+    .eq('player_id', user.id)
     .neq('status', 'cancelled')
 
-  const myRegistrations = (registrations ?? [])
-    .filter(r => r.competitions)
-    .map(r => {
-      const comp = r.competitions as any
-      return {
+  const { data: teamRegistrations } = await supabase
+    .from('competition_team_registrations')
+    .select(`
+      status,
+      competitions (
+        id, name, type, season_year, start_date, end_date, price, status
+      )
+    `)
+    .neq('status', 'cancelled')
+
+  const registrationMap = new Map<string, any>()
+
+  ;(registrations ?? []).forEach((r) => {
+    if (!r.competitions) return
+    const comp = r.competitions as any
+    registrationMap.set(comp.id, {
+      id: comp.id,
+      name: comp.name,
+      type: comp.type,
+      season_year: comp.season_year,
+      start_date: comp.start_date,
+      end_date: comp.end_date,
+      price: Number(comp.price ?? 0),
+      status: comp.status,
+      registrationStatus: r.status,
+    })
+  })
+
+  ;(teamRegistrations ?? []).forEach((r) => {
+    if (!r.competitions) return
+    const comp = r.competitions as any
+    if (!registrationMap.has(comp.id)) {
+      registrationMap.set(comp.id, {
         id: comp.id,
         name: comp.name,
         type: comp.type,
@@ -36,8 +66,11 @@ export default async function CompetitionsPage() {
         price: Number(comp.price ?? 0),
         status: comp.status,
         registrationStatus: r.status,
-      }
-    })
+      })
+    }
+  })
+
+  const myRegistrations = Array.from(registrationMap.values())
 
   const competitions = (openCompetitions ?? []).map(c => ({
     ...c,

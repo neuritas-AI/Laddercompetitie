@@ -11,9 +11,10 @@ interface Props {
   matchId: string
   opponent: string
   competition: string
+  isPlayer1: boolean
 }
 
-export default function ScoreForm({ matchId, opponent, competition }: Props) {
+export default function ScoreForm({ matchId, opponent, competition, isPlayer1 }: Props) {
   const router = useRouter()
   const [p1Score, setP1Score] = useState<string>('')
   const [p2Score, setP2Score] = useState<string>('')
@@ -25,8 +26,8 @@ export default function ScoreForm({ matchId, opponent, competition }: Props) {
     const s1 = parseInt(p1Score)
     const s2 = parseInt(p2Score)
     if (isNaN(s1) || isNaN(s2)) return null
-    if (s1 > s2) return 'p1'
-    if (s2 > s1) return 'p2'
+    if (s1 > s2) return 'me'
+    if (s2 > s1) return 'opp'
     return null
   }
 
@@ -49,10 +50,13 @@ export default function ScoreForm({ matchId, opponent, competition }: Props) {
 
     setSubmitting(true)
     try {
+      const payload = isPlayer1
+        ? { matchId, p1Score: s1, p2Score: s2 }
+        : { matchId, p1Score: s2, p2Score: s1 }
       const res = await fetch('/api/matches/score', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ matchId, p1Score: s1, p2Score: s2 }),
+        body: JSON.stringify(payload),
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || 'Fout bij opslaan')
@@ -96,7 +100,7 @@ export default function ScoreForm({ matchId, opponent, competition }: Props) {
                 placeholder="0"
                 value={p1Score}
                 onChange={(e) => setP1Score(e.target.value)}
-                className={`text-center text-4xl font-black h-24 rounded-2xl bg-muted/50 border-2 transition-all focus-visible:ring-primary ${currentWinner === 'p1' ? 'border-primary text-primary bg-primary/5' : 'border-transparent'}`}
+                className={`text-center text-4xl font-black h-24 rounded-2xl bg-muted/50 border-2 transition-all focus-visible:ring-primary ${currentWinner === 'me' ? 'border-primary text-primary bg-primary/5' : 'border-transparent'}`}
                 required
               />
             </div>
@@ -115,7 +119,7 @@ export default function ScoreForm({ matchId, opponent, competition }: Props) {
                 placeholder="0"
                 value={p2Score}
                 onChange={(e) => setP2Score(e.target.value)}
-                className={`text-center text-4xl font-black h-24 rounded-2xl bg-muted/50 border-2 transition-all focus-visible:ring-primary ${currentWinner === 'p2' ? 'border-primary text-primary bg-primary/5' : 'border-transparent'}`}
+                className={`text-center text-4xl font-black h-24 rounded-2xl bg-muted/50 border-2 transition-all focus-visible:ring-primary ${currentWinner === 'opp' ? 'border-primary text-primary bg-primary/5' : 'border-transparent'}`}
                 required
               />
             </div>
@@ -124,7 +128,7 @@ export default function ScoreForm({ matchId, opponent, competition }: Props) {
           {currentWinner && (
             <div className="flex items-center justify-center gap-2 p-4 rounded-xl bg-primary/10 text-primary font-bold animate-in fade-in zoom-in duration-300">
               <Trophy className="h-5 w-5" />
-              Winnaar: {currentWinner === 'p1' ? 'Jij' : opponent}
+              Winnaar: {currentWinner === 'me' ? 'Jij' : opponent}
             </div>
           )}
 

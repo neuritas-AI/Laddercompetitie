@@ -3,6 +3,7 @@ import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Calendar, Trophy, ChevronRight, PenSquare, User } from 'lucide-react'
 import Link from 'next/link'
+import { redirect } from 'next/navigation'
 import { createClient } from '@/utils/supabase/server'
 import { getDisplayName } from '@/lib/profile'
 import { formatDateInBrussels } from '@/lib/brussels'
@@ -11,12 +12,13 @@ import { REGISTRATION_STATUS_LABELS } from '@/lib/competitions'
 export default async function PlayerDashboard() {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return redirect('/login')
 
   // Fetch profile
   const { data: profile } = await supabase
     .from('profiles')
     .select('first_name, last_name, avatar_url')
-    .eq('id', user!.id)
+    .eq('id', user.id)
     .single()
 
   const displayName = getDisplayName(profile ?? {})
@@ -29,9 +31,35 @@ export default async function PlayerDashboard() {
       status,
       competitions (id, name, type, season_year, start_date, end_date)
     `)
-    .eq('player_id', user!.id)
+    .eq('player_id', user.id)
     .neq('status', 'cancelled')
     .order('created_at', { ascending: false })
+
+  const { data: teamRegistrations } = await supabase
+    .from('competition_team_registrations')
+    .select(`
+      status,
+      competitions (id, name, type, season_year, start_date, end_date)
+    `)
+    .neq('status', 'cancelled')
+
+  const registrationMap = new Map<string, any>()
+
+  ;(registrations ?? []).forEach((reg) => {
+    if (!reg.competitions) return
+    const comp = reg.competitions as any
+    registrationMap.set(comp.id, { ...reg, competitions: comp })
+  })
+
+  ;(teamRegistrations ?? []).forEach((reg) => {
+    if (!reg.competitions) return
+    const comp = reg.competitions as any
+    if (!registrationMap.has(comp.id)) {
+      registrationMap.set(comp.id, { ...reg, competitions: comp })
+    }
+  })
+
+  const combinedRegistrations = Array.from(registrationMap.values())
 
   // Fetch poule info
   const { data: poulePlayer } = await supabase
@@ -115,14 +143,14 @@ export default async function PlayerDashboard() {
       </div>
 
       {/* My Competitions */}
-      {registrations && registrations.length > 0 && (
+      {combinedRegistrations.length > 0 && (
         <div className="space-y-3">
           <div className="flex items-center justify-between">
             <h2 className="text-lg font-bold text-foreground">Mijn competities</h2>
             <Link href="/competitions" className="text-xs font-bold text-primary hover:underline">Bekijk alles</Link>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {registrations.map((reg) => {
+            {combinedRegistrations.map((reg) => {
               const comp = reg.competitions as any
               if (!comp) return null
               const statusLabel = REGISTRATION_STATUS_LABELS[reg.status] ?? reg.status

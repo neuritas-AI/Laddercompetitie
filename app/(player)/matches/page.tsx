@@ -1,9 +1,11 @@
+import { redirect } from 'next/navigation'
 import { createClient } from '@/utils/supabase/server'
 import MatchesClient from '@/components/matches-client'
 
 export default async function MatchesPage() {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return redirect('/login')
 
   // Get poule info
   const { data: poulePlayer } = await supabase
@@ -21,7 +23,12 @@ export default async function MatchesPage() {
     .neq('status', 'cancelled')
     .limit(1)
 
-  const hasCompetition = (registrations?.length ?? 0) > 0
+  const { data: teamRegistrations } = await supabase
+    .from('competition_team_registrations')
+    .select('id')
+    .limit(1)
+
+  const hasCompetition = (registrations?.length ?? 0) > 0 || (teamRegistrations?.length ?? 0) > 0
 
   const matchSelect = `
     id,

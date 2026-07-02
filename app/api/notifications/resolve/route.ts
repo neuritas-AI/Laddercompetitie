@@ -12,9 +12,11 @@ export async function POST(request: Request) {
   const { data: notif } = await supabase.from('notifications').select('id, type, link_url, created_at').eq('id', notificationId).maybeSingle()
   if (!notif) return NextResponse.json({ error: 'Notificatie niet gevonden' }, { status: 404 })
 
-  // Try to resolve a proper match link based on notification type and user's related matches
+  if (notif.link_url && notif.link_url.startsWith('/')) {
+    return NextResponse.json({ success: true, url: notif.link_url })
+  }
+
   if (notif.type === 'score_entered') {
-    // Find the most recent pending score for this user
     const { data: score } = await supabase
       .from('match_scores')
       .select('match_id')
@@ -27,7 +29,6 @@ export async function POST(request: Request) {
   }
 
   if (notif.type === 'match_scheduled' || notif.type === 'match_today' || notif.type === 'match_tomorrow' || notif.type === 'score_confirmed') {
-    // Find the most relevant match for the user (next upcoming or recent)
     const { data: match } = await supabase
       .from('matches')
       .select('id, scheduled_date')

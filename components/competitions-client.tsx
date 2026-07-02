@@ -102,6 +102,7 @@ export default function CompetitionsClient({
     startTransition(async () => {
       const result = await completeTestPayment(selectedCompetition.id)
       if (result.success) {
+        setRegisteredIds(prev => new Set([...Array.from(prev), selectedCompetition.id]))
         setPaymentMsg({ type: 'success', text: 'Inschrijving voltooid! Je bent ingeschreven voor deze competitie.' })
         setTimeout(() => {
           setPaymentOpen(false)

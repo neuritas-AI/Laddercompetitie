@@ -41,6 +41,7 @@ export default function MatchesClient({ upcoming, past, userId, pouleName, hasCo
   const [showScore, setShowScore] = useState(false)
   const [scoreMatchId, setScoreMatchId] = useState<string | null>(null)
   const [scoreOpponent, setScoreOpponent] = useState('')
+  const [scoreIsPlayer1, setScoreIsPlayer1] = useState<boolean | null>(null)
   const [showSchedule, setShowSchedule] = useState(false)
   const [scheduleMatchId, setScheduleMatchId] = useState<string | null>(null)
   const [scheduleData, setScheduleData] = useState({ date: '', time: '', location: '' })
@@ -82,16 +83,21 @@ export default function MatchesClient({ upcoming, past, userId, pouleName, hasCo
     }
   }
 
-  if (showScore && scoreMatchId) {
+  if (showScore && scoreMatchId && scoreIsPlayer1 !== null) {
     return (
       <div className="space-y-6 max-w-5xl mx-auto">
         <button 
-          onClick={() => setShowScore(false)} 
+          onClick={() => {
+            setShowScore(false)
+            setScoreMatchId(null)
+            setScoreOpponent('')
+            setScoreIsPlayer1(null)
+          }} 
           className="flex items-center text-sm font-bold text-muted-foreground hover:text-primary transition-colors bg-white/50 backdrop-blur-md px-4 py-2 rounded-full border shadow-sm w-fit"
         >
           <ArrowLeft className="w-4 h-4 mr-2" /> Terug naar overzicht
         </button>
-        <ScoreForm matchId={scoreMatchId} opponent={scoreOpponent} competition={pouleName ?? ''} />
+        <ScoreForm matchId={scoreMatchId} opponent={scoreOpponent} competition={pouleName ?? ''} isPlayer1={scoreIsPlayer1} />
       </div>
     )
   }
@@ -177,7 +183,7 @@ export default function MatchesClient({ upcoming, past, userId, pouleName, hasCo
               </Button>
             )}
             {!isPast && (
-              <Button variant="outline" onClick={() => { setScoreMatchId(match.id); setScoreOpponent(oppName); setShowScore(true) }} className="border-2 font-bold rounded-xl hover:bg-muted/50">
+              <Button variant="outline" onClick={() => { setScoreMatchId(match.id); setScoreOpponent(oppName); setScoreIsPlayer1(isPlayer1); setShowScore(true) }} className="border-2 font-bold rounded-xl hover:bg-muted/50">
                 <PenSquare className="w-4 h-4 mr-2" /> Score
               </Button>
             )}
