@@ -1,9 +1,12 @@
-import { createClient } from '@/utils/supabase/server'
+import { createClientWithUser } from '@/utils/supabase/server'
 import { redirect } from 'next/navigation'
 
 export default async function Home() {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const { supabase, user, authError } = await createClientWithUser()
+
+  if (authError || !user) {
+    return redirect('/login')
+  }
 
   if (user) {
     // Check if user is admin

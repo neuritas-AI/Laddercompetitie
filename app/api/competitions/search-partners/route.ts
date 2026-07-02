@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { createClient } from '@/utils/supabase/server'
+import { createClientWithUser } from '@/utils/supabase/server'
 import { createClient as createSupabaseClient } from '@supabase/supabase-js'
 
 export async function GET(request: Request) {
@@ -13,9 +13,8 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: 'Ontbrekende competitie.' }, { status: 400 })
   }
 
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) {
+  const { supabase, user, authError } = await createClientWithUser()
+  if (authError || !user) {
     return NextResponse.json({ error: 'Niet ingelogd.' }, { status: 401 })
   }
 

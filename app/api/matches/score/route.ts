@@ -1,13 +1,11 @@
-import { createClient } from '@/utils/supabase/server'
+import { createClientWithUser } from '@/utils/supabase/server'
 import { sendNotification } from '@/app/actions/notifications'
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 
 export async function POST(request: NextRequest) {
-  const supabase = await createClient()
-
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return NextResponse.json({ error: 'Niet ingelogd' }, { status: 401 })
+  const { supabase, user, authError } = await createClientWithUser()
+  if (authError || !user) return NextResponse.json({ error: 'Niet ingelogd' }, { status: 401 })
 
   const { matchId, p1Score, p2Score } = await request.json()
 

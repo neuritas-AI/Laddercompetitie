@@ -1,4 +1,4 @@
-import { createClient } from '@/utils/supabase/server'
+import { createClientWithUser } from '@/utils/supabase/server'
 import { redirect } from 'next/navigation'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import Link from 'next/link'
@@ -11,8 +11,7 @@ export default async function RegisterPage({
 }: {
   searchParams: Promise<{ error?: string; success?: string }>
 }) {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const { supabase, user, authError } = await createClientWithUser()
   if (user) redirect('/dashboard')
 
   const params = await searchParams

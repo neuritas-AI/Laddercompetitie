@@ -1,5 +1,5 @@
 import { notFound, redirect } from 'next/navigation'
-import { createClient } from '@/utils/supabase/server'
+import { createClientWithUser } from '@/utils/supabase/server'
 import ConfirmMatchForm from '@/components/confirm-match-form'
 
 interface Params {
@@ -9,10 +9,8 @@ interface Params {
 }
 
 export default async function MatchConfirmPage({ params }: Params) {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-
-  if (!user) {
+  const { supabase, user, authError } = await createClientWithUser()
+  if (authError || !user) {
     redirect('/login')
   }
 

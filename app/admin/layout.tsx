@@ -1,10 +1,13 @@
-import { createClient } from '@/utils/supabase/server'
+import { createClientWithUser } from '@/utils/supabase/server'
 import { getDisplayName } from '@/lib/profile'
 import AdminLayoutClient from '@/components/admin-layout-client'
 
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const { supabase, user, authError } = await createClientWithUser()
+  if (authError) {
+    // Treat auth errors as unauthenticated; render minimal layout
+    return <AdminLayoutClient adminName={'Beheerder'} adminEmail={''}>{children}</AdminLayoutClient>
+  }
 
   let adminName = 'Beheerder'
   let adminEmail = ''

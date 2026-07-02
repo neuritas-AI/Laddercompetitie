@@ -1,7 +1,7 @@
 'use server'
 
 import { revalidatePath } from 'next/cache'
-import { createClient } from '@/utils/supabase/server'
+import { createClientWithUser } from '@/utils/supabase/server'
 import { getPaymentProvider } from '@/lib/payment'
 
 export type ActionResponse = {
@@ -11,9 +11,7 @@ export type ActionResponse = {
 }
 
 export async function enrollInCompetition(competitionId: string): Promise<ActionResponse> {
-  const supabase = await createClient()
-  const { data: { user }, error: authError } = await supabase.auth.getUser()
-
+  const { supabase, user, authError } = await createClientWithUser()
   if (authError || !user) {
     return { success: false, error: 'Niet ingelogd.' }
   }
@@ -77,9 +75,7 @@ export async function enrollInCompetition(competitionId: string): Promise<Action
 }
 
 export async function completeTestPayment(competitionId: string): Promise<ActionResponse> {
-  const supabase = await createClient()
-  const { data: { user }, error: authError } = await supabase.auth.getUser()
-
+  const { supabase, user, authError } = await createClientWithUser()
   if (authError || !user) {
     return { success: false, error: 'Niet ingelogd.' }
   }

@@ -1,13 +1,12 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { ShieldAlert, CheckCircle } from 'lucide-react'
-import { createClient } from '@/utils/supabase/server'
+import { createClientWithUser } from '@/utils/supabase/server'
 import AddAdminDialog from '@/components/admin/add-admin-dialog'
 import DemoteAdminButton from './demote-button'
 
 export default async function AdministratorsPage() {
-  const supabase = await createClient()
-
-  const { data: { user } } = await supabase.auth.getUser()
+  const { supabase, user, authError } = await createClientWithUser()
+  if (authError || !user) return null
 
   const { data: admins } = await supabase
     .from('profiles')

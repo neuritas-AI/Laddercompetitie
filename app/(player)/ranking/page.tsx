@@ -1,9 +1,11 @@
 import { Trophy, Shield, Info } from 'lucide-react'
-import { createClient } from '@/utils/supabase/server'
+import { createClientWithUser } from '@/utils/supabase/server'
 
 export default async function RankingPage() {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const { supabase, user, authError } = await createClientWithUser()
+  if (authError || !user) return (
+    <div className="min-h-[60vh] flex items-center justify-center p-8"><p className="text-muted-foreground">Niet ingelogd</p></div>
+  )
 
   // Get current user's poule
   const { data: myPoulePlayer } = await supabase

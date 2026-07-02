@@ -1,10 +1,9 @@
-import { createClient } from '@/utils/supabase/server'
+import { createClientWithUser } from '@/utils/supabase/server'
 import { NextResponse } from 'next/server'
 
 export async function GET() {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return NextResponse.json({ error: 'Niet ingelogd' }, { status: 401 })
+  const { supabase, user, authError } = await createClientWithUser()
+  if (authError || !user) return NextResponse.json({ error: 'Niet ingelogd' }, { status: 401 })
 
   // Fetch matches with status 'played' where the user is a participant
   const { data: matches, error } = await supabase

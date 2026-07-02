@@ -1,4 +1,4 @@
-import { createClient } from '@/utils/supabase/server'
+import { createClientWithUser } from '@/utils/supabase/server'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -13,8 +13,8 @@ export default async function LoginPage({
 }: {
   searchParams: Promise<{ error?: string; success?: string }>
 }) {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const { supabase, user, authError } = await createClientWithUser()
+  // If auth threw due to invalid refresh token, treat as not authenticated
   if (user) redirect('/dashboard')
 
   const params = await searchParams

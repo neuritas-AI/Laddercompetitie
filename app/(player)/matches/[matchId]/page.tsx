@@ -1,13 +1,10 @@
 import { notFound, redirect } from 'next/navigation'
-import { createClient } from '@/utils/supabase/server'
+import { createClientWithUser } from '@/utils/supabase/server'
 import { formatDateInBrussels } from '@/lib/brussels'
 
 export default async function MatchDetailPage({ params }: { params: { matchId: string } }) {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-
-  if (!user) {
-    // If not authenticated, redirect to login instead of returning 404
+  const { supabase, user, authError } = await createClientWithUser()
+  if (authError || !user) {
     redirect('/login')
   }
 

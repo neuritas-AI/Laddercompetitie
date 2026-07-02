@@ -1,9 +1,9 @@
-import { createClient } from '@/utils/supabase/server'
+import { createClientWithUser } from '@/utils/supabase/server'
 import ProfileClient from '@/components/profile-client'
 
 export default async function ProfilePage() {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const { supabase, user, authError } = await createClientWithUser()
+  if (authError || !user) return null
 
   const { data: profile } = await supabase
     .from('profiles')

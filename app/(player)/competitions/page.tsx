@@ -1,11 +1,10 @@
 import { redirect } from 'next/navigation'
-import { createClient } from '@/utils/supabase/server'
+import { createClientWithUser } from '@/utils/supabase/server'
 import CompetitionsClient from '@/components/competitions-client'
 
 export default async function CompetitionsPage() {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return redirect('/login')
+  const { supabase, user, authError } = await createClientWithUser()
+  if (authError || !user) return redirect('/login')
 
   const { data: openCompetitions } = await supabase
     .from('competitions')

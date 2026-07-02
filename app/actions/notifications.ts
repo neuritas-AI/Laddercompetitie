@@ -1,6 +1,6 @@
 'use server'
 
-import { createClient } from '@/utils/supabase/server'
+import { createClientWithUser } from '@/utils/supabase/server'
 import { revalidatePath } from 'next/cache'
 import { normalizeNotificationLink, type NotificationType } from '@/lib/notifications'
 
@@ -12,7 +12,7 @@ export async function sendNotification(
   linkUrl?: string,
   matchId?: string
 ) {
-  const supabase = await createClient()
+  const { supabase } = await createClientWithUser()
 
   // First check if the user has opted in for this notification
   const { data: profile } = await supabase
@@ -49,10 +49,8 @@ export async function sendNotification(
 }
 
 export async function markAsRead(notificationId: string) {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-
-  if (!user) return { success: false }
+  const { supabase, user, authError } = await createClientWithUser()
+  if (authError || !user) return { success: false }
 
   const { error } = await supabase
     .from('notifications')
@@ -67,10 +65,8 @@ export async function markAsRead(notificationId: string) {
 }
 
 export async function markAllAsRead() {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-
-  if (!user) return { success: false }
+  const { supabase, user, authError } = await createClientWithUser()
+  if (authError || !user) return { success: false }
 
   const { error } = await supabase
     .from('notifications')
@@ -85,10 +81,8 @@ export async function markAllAsRead() {
 }
 
 export async function deleteNotification(notificationId: string) {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-
-  if (!user) return { success: false }
+  const { supabase, user, authError } = await createClientWithUser()
+  if (authError || !user) return { success: false }
 
   const { error } = await supabase
     .from('notifications')

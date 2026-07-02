@@ -1,11 +1,10 @@
 import { redirect } from 'next/navigation'
-import { createClient } from '@/utils/supabase/server'
+import { createClientWithUser } from '@/utils/supabase/server'
 import MatchesClient from '@/components/matches-client'
 
 export default async function MatchesPage() {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return redirect('/login')
+  const { supabase, user, authError } = await createClientWithUser()
+  if (authError || !user) return redirect('/login')
 
   // Get poule info
   const { data: poulePlayer } = await supabase

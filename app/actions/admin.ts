@@ -1,7 +1,7 @@
 'use server'
 
 import { revalidatePath } from 'next/cache'
-import { createClient } from '@/utils/supabase/server'
+import { createClientWithUser } from '@/utils/supabase/server'
 import { createClient as createSupabaseClient } from '@supabase/supabase-js'
 
 export type ActionResponse = {
@@ -25,10 +25,8 @@ const ADMIN_EMAILS = ['tijs.peetermans@neuritas-ai.com']
 
 // Ensure the user is an admin
 async function ensureAdmin() {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-
-  if (!user) throw new Error('Not logged in')
+  const { supabase, user, authError } = await createClientWithUser()
+  if (authError || !user) throw new Error('Not logged in')
 
   const { data } = await supabase.from('profiles').select('role').eq('id', user.id).maybeSingle()
 

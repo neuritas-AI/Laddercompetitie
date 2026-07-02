@@ -4,15 +4,14 @@ import { Badge } from '@/components/ui/badge'
 import { Calendar, Trophy, ChevronRight, PenSquare, User } from 'lucide-react'
 import Link from 'next/link'
 import { redirect } from 'next/navigation'
-import { createClient } from '@/utils/supabase/server'
+import { createClientWithUser } from '@/utils/supabase/server'
 import { getDisplayName } from '@/lib/profile'
 import { formatDateInBrussels } from '@/lib/brussels'
 import { REGISTRATION_STATUS_LABELS } from '@/lib/competitions'
 
 export default async function PlayerDashboard() {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return redirect('/login')
+  const { supabase, user, authError } = await createClientWithUser()
+  if (authError || !user) return redirect('/login')
 
   // Fetch profile
   const { data: profile } = await supabase

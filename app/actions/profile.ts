@@ -1,14 +1,14 @@
 'use server'
 
 import { revalidatePath } from 'next/cache'
-import { createClient } from '@/utils/supabase/server'
+import { createClientWithUser } from '@/utils/supabase/server'
 
 export type ProfileUpdateResult = {
   success: boolean
   error?: string
 }
 
-async function readUserProfile(supabase: Awaited<ReturnType<typeof createClient>>, userId: string) {
+async function readUserProfile(supabase: any, userId: string) {
   return supabase.from('profiles').select('preferences').eq('id', userId).maybeSingle()
 }
 
@@ -19,9 +19,7 @@ async function toDataUrl(file: File) {
 }
 
 export async function updateProfile(formData: FormData): Promise<ProfileUpdateResult> {
-  const supabase = await createClient()
-  const { data: { user }, error: authError } = await supabase.auth.getUser()
-
+  const { supabase, user, authError } = await createClientWithUser()
   if (authError || !user) {
     return { success: false, error: 'Niet ingelogd.' }
   }
@@ -54,9 +52,7 @@ export async function updateProfile(formData: FormData): Promise<ProfileUpdateRe
 }
 
 export async function updateNotificationPreferences(formData: FormData): Promise<ProfileUpdateResult> {
-  const supabase = await createClient()
-  const { data: { user }, error: authError } = await supabase.auth.getUser()
-
+  const { supabase, user, authError } = await createClientWithUser()
   if (authError || !user) {
     return { success: false, error: 'Niet ingelogd.' }
   }
@@ -82,9 +78,7 @@ export async function updateNotificationPreferences(formData: FormData): Promise
 }
 
 export async function uploadAvatar(formData: FormData): Promise<{ success: boolean; avatarUrl?: string; error?: string }> {
-  const supabase = await createClient()
-  const { data: { user }, error: authError } = await supabase.auth.getUser()
-
+  const { supabase, user, authError } = await createClientWithUser()
   if (authError || !user) {
     return { success: false, error: 'Niet ingelogd.' }
   }
@@ -119,9 +113,7 @@ export async function uploadAvatar(formData: FormData): Promise<{ success: boole
 }
 
 export async function removeAvatar(): Promise<ProfileUpdateResult> {
-  const supabase = await createClient()
-  const { data: { user }, error: authError } = await supabase.auth.getUser()
-
+  const { supabase, user, authError } = await createClientWithUser()
   if (authError || !user) {
     return { success: false, error: 'Niet ingelogd.' }
   }
@@ -144,9 +136,7 @@ export async function removeAvatar(): Promise<ProfileUpdateResult> {
 }
 
 export async function updatePassword(formData: FormData): Promise<ProfileUpdateResult> {
-  const supabase = await createClient()
-  const { data: { user }, error: authError } = await supabase.auth.getUser()
-
+  const { supabase, user, authError } = await createClientWithUser()
   if (authError || !user) {
     return { success: false, error: 'Niet ingelogd.' }
   }
