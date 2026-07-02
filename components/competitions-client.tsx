@@ -67,7 +67,6 @@ export default function CompetitionsClient({
   const [paymentMsg, setPaymentMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
   const [registeredIds, setRegisteredIds] = useState<Set<string>>(new Set(myRegistrations.map(r => r.id)))
 
-  const registeredIds = new Set(myRegistrations.map(r => r.id))
   const availableCompetitions = openCompetitions.filter(c => !registeredIds.has(c.id))
 
   function handleEnroll(competition: CompetitionItem) {

@@ -1,6 +1,6 @@
 -- Migration 00018: Allow team members to view and confirm match scores for doubles
 
-ALTER TABLE public.match_scores DROP POLICY IF EXISTS "Players can view scores of their matches";
+DROP POLICY IF EXISTS "Players can view scores of their matches" ON public.match_scores;
 CREATE POLICY "Players can view scores of their matches" ON public.match_scores
   FOR SELECT USING (
     EXISTS (
@@ -17,7 +17,7 @@ CREATE POLICY "Players can view scores of their matches" ON public.match_scores
     )
   );
 
-ALTER TABLE public.match_scores DROP POLICY IF EXISTS "Players can submit scores for their matches";
+DROP POLICY IF EXISTS "Players can submit scores for their matches" ON public.match_scores;
 CREATE POLICY "Players can submit scores for their matches" ON public.match_scores
   FOR INSERT WITH CHECK (
     submitted_by = auth.uid()
@@ -35,7 +35,7 @@ CREATE POLICY "Players can submit scores for their matches" ON public.match_scor
     )
   );
 
-ALTER TABLE public.match_confirmations DROP POLICY IF EXISTS "Players can confirm/dispute scores";
+DROP POLICY IF EXISTS "Players can confirm/dispute scores" ON public.match_confirmations;
 CREATE POLICY "Players can confirm/dispute scores" ON public.match_confirmations
   FOR INSERT WITH CHECK (
     confirmed_by = auth.uid()
@@ -55,7 +55,7 @@ CREATE POLICY "Players can confirm/dispute scores" ON public.match_confirmations
     )
   );
 
-ALTER TABLE public.match_confirmations DROP POLICY IF EXISTS "Players can view confirmations";
+DROP POLICY IF EXISTS "Players can view confirmations" ON public.match_confirmations;
 CREATE POLICY "Players can view confirmations" ON public.match_confirmations
   FOR SELECT USING (
     EXISTS (
