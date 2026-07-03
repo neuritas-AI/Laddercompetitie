@@ -2,7 +2,8 @@ import { notFound, redirect } from 'next/navigation'
 import { createClientWithUser } from '@/utils/supabase/server'
 import { formatDateInBrussels } from '@/lib/brussels'
 
-export default async function MatchDetailPage({ params }: { params: { matchId: string } }) {
+export default async function MatchDetailPage({ params }: { params: Promise<{ matchId: string }> }) {
+  const { matchId } = await params
   const { supabase, user, authError } = await createClientWithUser()
   if (authError || !user) {
     redirect('/login')
@@ -23,7 +24,7 @@ export default async function MatchDetailPage({ params }: { params: { matchId: s
       player1:profiles!matches_player1_id_fkey(first_name, last_name, avatar_url),
       player2:profiles!matches_player2_id_fkey(first_name, last_name, avatar_url)
     `)
-    .eq('id', params.matchId)
+    .eq('id', matchId)
     .single()
 
   if (error || !match) {

@@ -3,12 +3,13 @@ import { createClientWithUser } from '@/utils/supabase/server'
 import ConfirmMatchForm from '@/components/confirm-match-form'
 
 interface Params {
-  params: {
+  params: Promise<{
     matchId: string
-  }
+  }>
 }
 
 export default async function MatchConfirmPage({ params }: Params) {
+  const { matchId } = await params
   const { supabase, user, authError } = await createClientWithUser()
   if (authError || !user) {
     redirect('/login')
@@ -19,7 +20,7 @@ export default async function MatchConfirmPage({ params }: Params) {
     .select(
       `id, player1_id, player2_id, status, player1:profiles!matches_player1_id_fkey(first_name, last_name), player2:profiles!matches_player2_id_fkey(first_name, last_name)`
     )
-    .eq('id', params.matchId)
+    .eq('id', matchId)
     .single()
 
   if (matchError || !match) {
@@ -50,7 +51,7 @@ export default async function MatchConfirmPage({ params }: Params) {
   const { data: score, error: scoreError } = await supabase
     .from('match_scores')
     .select('id, p1_score, p2_score, submitted_by, status')
-    .eq('match_id', params.matchId)
+    .eq('match_id', matchId)
     .eq('status', 'pending')
     .order('created_at', { ascending: false })
     .limit(1)

@@ -117,34 +117,80 @@ export async function POST(request: NextRequest) {
       if (matchUpdateError) return NextResponse.json({ error: matchUpdateError.message }, { status: 500 })
 
       const loserId = match.player1_id === score.winner_id ? match.player2_id : match.player1_id
-      const raw = (supabase as any).raw?.bind(supabase)
 
-      await Promise.all([
-        supabase.from('poule_players').update({
-          matches_played: raw ? raw('matches_played + 1') : undefined,
-          matches_won: raw ? raw('matches_won + 1') : undefined,
-        }).eq('poule_id', match.poule_id).eq('player_id', score.winner_id),
-        supabase.from('poule_players').update({
-          matches_played: raw ? raw('matches_played + 1') : undefined,
-          matches_lost: raw ? raw('matches_lost + 1') : undefined,
-        }).eq('poule_id', match.poule_id).eq('player_id', loserId),
-      ])
+      // poule_players can only be written by admins under RLS (see migration 00001), so this
+      // trusted server-side stats/ranking transition must go through the service-role client,
+      // just like the `match` lookup above — otherwise these updates silently affect 0 rows
+      // whenever a player (not an admin) is the one confirming the score.
 
-      const { data: standings } = await supabase
+      // Fetch current stats for both participants so we can increment them ourselves.
+      // (Supabase's JS client has no `.raw()` escape hatch for atomic `column + 1` updates.)
+      const { data: participants, error: participantsError } = await adminDb
+        .from('poule_players')
+        .select('id, player_id, matches_played, matches_won, matches_lost')
+        .eq('poule_id', match.poule_id)
+        .in('player_id', [score.winner_id, loserId])
+
+      if (participantsError) return NextResponse.json({ error: participantsError.message }, { status: 500 })
+
+      const winnerRow = participants?.find((p) => p.player_id === score.winner_id)
+      const loserRow = participants?.find((p) => p.player_id === loserId)
+
+      const statUpdates = []
+      if (winnerRow) {
+        statUpdates.push(
+          adminDb
+            .from('poule_players')
+            .update({
+              matches_played: winnerRow.matches_played + 1,
+              matches_won: winnerRow.matches_won + 1,
+            })
+            .eq('id', winnerRow.id)
+        )
+      }
+      if (loserRow) {
+        statUpdates.push(
+          adminDb
+            .from('poule_players')
+            .update({
+              matches_played: loserRow.matches_played + 1,
+              matches_lost: loserRow.matches_lost + 1,
+            })
+            .eq('id', loserRow.id)
+        )
+      }
+
+      for (const result of await Promise.all(statUpdates)) {
+        if (result.error) return NextResponse.json({ error: result.error.message }, { status: 500 })
+      }
+
+      const { data: standings, error: standingsError } = await adminDb
         .from('poule_players')
         .select('id, player_id, matches_won, matches_lost, created_at')
         .eq('poule_id', match.poule_id)
 
+      if (standingsError) return NextResponse.json({ error: standingsError.message }, { status: 500 })
+
       if (standings) {
+        // Ranking points: a win is worth 2 points, a loss is worth 0. Since every player
+        // in a poule has played the same fixture list, points are directly proportional
+        // to matches_won (points = matches_won * 2), so sorting on points and on
+        // matches_won produce the same order. Fewer losses breaks ties on equal points.
         const ordered = [...standings].sort((a: any, b: any) => {
-          if (b.matches_won !== a.matches_won) return b.matches_won - a.matches_won
+          const pointsA = a.matches_won * 2
+          const pointsB = b.matches_won * 2
+          if (pointsB !== pointsA) return pointsB - pointsA
           if (a.matches_lost !== b.matches_lost) return a.matches_lost - b.matches_lost
           return new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
         })
 
         for (let index = 0; index < ordered.length; index++) {
           const player = ordered[index]
-          await supabase.from('poule_players').update({ position: index + 1 }).eq('id', player.id)
+          const { error: positionError } = await adminDb
+            .from('poule_players')
+            .update({ position: index + 1 })
+            .eq('id', player.id)
+          if (positionError) return NextResponse.json({ error: positionError.message }, { status: 500 })
         }
       }
 
