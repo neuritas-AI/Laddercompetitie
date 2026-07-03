@@ -83,16 +83,47 @@ export default function MatchesClient({ upcoming, past, userId, pouleName, hasCo
     }
   }
 
+  // Fetch confirmable matches when the confirm tab is opened
+  useEffect(() => {
+    let mounted = true
+    if (activeTab !== 'confirm') return
+    setLoadingConfirm(true)
+    fetch('/api/matches/pending')
+      .then(r => r.json())
+      .then(data => {
+        if (!mounted) return
+        setConfirmMatches(data.matches ?? [])
+      })
+      .catch(() => setConfirmMatches([]))
+      .finally(() => setLoadingConfirm(false))
+
+    // Listen for optimistic updates from other pages (confirm form)
+    let bc: BroadcastChannel | null = null
+    try {
+      bc = new BroadcastChannel('matches')
+      bc.onmessage = (e) => {
+        const msg = e.data as any
+        if (!msg || !msg.matchId) return
+        if (msg.type === 'confirmed' || msg.type === 'disputed') {
+          setConfirmMatches(prev => prev.filter(m => m.id !== msg.matchId))
+        }
+      }
+    } catch (e) {
+      // ignore if not supported
+    }
+    return () => { mounted = false }
+  }, [activeTab])
+
   if (showScore && scoreMatchId && scoreIsPlayer1 !== null) {
     return (
       <div className="space-y-6 max-w-5xl mx-auto">
-        <button 
+        <button
           onClick={() => {
             setShowScore(false)
             setScoreMatchId(null)
             setScoreOpponent('')
             setScoreIsPlayer1(null)
-          }} 
+          }}
           className="flex items-center text-sm font-bold text-muted-foreground hover:text-primary transition-colors bg-white/50 backdrop-blur-md px-4 py-2 rounded-full border shadow-sm w-fit"
         >
           <ArrowLeft className="w-4 h-4 mr-2" /> Terug naar overzicht
@@ -240,37 +271,6 @@ export default function MatchesClient({ upcoming, past, userId, pouleName, hasCo
       </div>
     )
   }
-
-  // Fetch confirmable matches when the confirm tab is opened
-  useEffect(() => {
-    let mounted = true
-    if (activeTab !== 'confirm') return
-    setLoadingConfirm(true)
-    fetch('/api/matches/pending')
-      .then(r => r.json())
-      .then(data => {
-        if (!mounted) return
-        setConfirmMatches(data.matches ?? [])
-      })
-      .catch(() => setConfirmMatches([]))
-      .finally(() => setLoadingConfirm(false))
-
-    // Listen for optimistic updates from other pages (confirm form)
-    let bc: BroadcastChannel | null = null
-    try {
-      bc = new BroadcastChannel('matches')
-      bc.onmessage = (e) => {
-        const msg = e.data as any
-        if (!msg || !msg.matchId) return
-        if (msg.type === 'confirmed' || msg.type === 'disputed') {
-          setConfirmMatches(prev => prev.filter(m => m.id !== msg.matchId))
-        }
-      }
-    } catch (e) {
-      // ignore if not supported
-    }
-    return () => { mounted = false }
-  }, [activeTab])
 
   // Combine provided lists and compute groups for the three tabs
   const allMatches = [...upcoming, ...past]
