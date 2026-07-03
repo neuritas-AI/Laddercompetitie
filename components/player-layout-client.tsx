@@ -100,14 +100,23 @@ export default function PlayerLayoutClient({
           <NotificationsDropdown notifications={notifications} variant="light" />
         </div>
 
-        <main className="flex-1 w-full max-w-6xl mx-auto p-4 sm:p-8 lg:p-10 pb-28 lg:pb-10">
+        <main className="flex-1 w-full max-w-6xl mx-auto p-4 sm:p-8 lg:p-10 pt-20 sm:pt-24 lg:pt-10 pb-28 lg:pb-10">
           {children}
         </main>
       </div>
 
       {/* Mobile Header */}
       <div className="lg:hidden fixed top-0 w-full bg-mockup-sidebar z-40 px-4 py-3 flex items-center justify-between shadow-md">
-        <div className="w-10" />
+        <form action="/api/auth/sign-out" method="post">
+          <button
+            type="submit"
+            aria-label="Uitloggen"
+            title="Uitloggen"
+            className="h-10 w-10 flex items-center justify-center rounded-full bg-white/15 hover:bg-white/25 text-white transition-colors"
+          >
+            <LogOut className="h-5 w-5" />
+          </button>
+        </form>
         <Logo size="sm" inverted />
         <NotificationsDropdown notifications={notifications} variant="dark" />
       </div>
