@@ -5,6 +5,7 @@ import { Calendar, Trophy, ChevronRight, PenSquare, User } from 'lucide-react'
 import Link from 'next/link'
 import { redirect } from 'next/navigation'
 import { createClientWithUser } from '@/utils/supabase/server'
+import { getCachedProfile, getCachedPoulePlayer } from '@/lib/server-data'
 import { getDisplayName } from '@/lib/profile'
 import { formatDateInBrussels } from '@/lib/brussels'
 import { REGISTRATION_STATUS_LABELS } from '@/lib/competitions'
@@ -13,34 +14,73 @@ export default async function PlayerDashboard() {
   const { supabase, user, authError } = await createClientWithUser()
   if (authError || !user) return redirect('/login')
 
-  // Fetch profile
-  const { data: profile } = await supabase
-    .from('profiles')
-    .select('first_name, last_name, avatar_url')
-    .eq('id', user.id)
-    .single()
+  // Run all independent queries concurrently instead of awaiting them one by one.
+  const [
+    profile,
+    poulePlayer,
+    { data: registrations },
+    { data: teamRegistrations },
+    { data: upcomingMatches },
+    { data: recentMatches },
+  ] = await Promise.all([
+    getCachedProfile(user.id),
+    getCachedPoulePlayer(user.id),
+    supabase
+      .from('competition_registrations')
+      .select(`
+        status,
+        competitions (id, name, type, season_year, start_date, end_date)
+      `)
+      .eq('player_id', user.id)
+      .neq('status', 'cancelled')
+      .order('created_at', { ascending: false }),
+    supabase
+      .from('competition_team_registrations')
+      .select(`
+        status,
+        competitions (id, name, type, season_year, start_date, end_date)
+      `)
+      .neq('status', 'cancelled'),
+    // Upcoming matches (where I'm player1 or player2 and not yet confirmed)
+    supabase
+      .from('matches')
+      .select(`
+        id,
+        scheduled_date,
+        location,
+        status,
+        player1_id,
+        player2_id,
+        player1:profiles!matches_player1_id_fkey(first_name, last_name, avatar_url),
+        player2:profiles!matches_player2_id_fkey(first_name, last_name, avatar_url)
+      `)
+      .or(`player1_id.eq.${user.id},player2_id.eq.${user.id}`)
+      .in('status', ['scheduled'])
+      .order('scheduled_date', { ascending: true })
+      .limit(3),
+    // Past/confirmed matches
+    supabase
+      .from('matches')
+      .select(`
+        id,
+        scheduled_date,
+        status,
+        score_player1,
+        score_player2,
+        winner_id,
+        player1_id,
+        player2_id,
+        player1:profiles!matches_player1_id_fkey(first_name, last_name, avatar_url),
+        player2:profiles!matches_player2_id_fkey(first_name, last_name, avatar_url)
+      `)
+      .or(`player1_id.eq.${user.id},player2_id.eq.${user.id}`)
+      .in('status', ['confirmed', 'played'])
+      .order('scheduled_date', { ascending: false })
+      .limit(3),
+  ])
 
   const displayName = getDisplayName(profile ?? {})
   const firstName = profile?.first_name?.trim() || displayName.split(' ')[0]
-
-  // Fetch user's competition registrations
-  const { data: registrations } = await supabase
-    .from('competition_registrations')
-    .select(`
-      status,
-      competitions (id, name, type, season_year, start_date, end_date)
-    `)
-    .eq('player_id', user.id)
-    .neq('status', 'cancelled')
-    .order('created_at', { ascending: false })
-
-  const { data: teamRegistrations } = await supabase
-    .from('competition_team_registrations')
-    .select(`
-      status,
-      competitions (id, name, type, season_year, start_date, end_date)
-    `)
-    .neq('status', 'cancelled')
 
   const registrationMap = new Map<string, any>()
 
@@ -60,18 +100,11 @@ export default async function PlayerDashboard() {
 
   const combinedRegistrations = Array.from(registrationMap.values())
 
-  // Fetch poule info
-  const { data: poulePlayer } = await supabase
-    .from('poule_players')
-    .select('position, matches_played, matches_won, poules(name, id)')
-    .eq('player_id', user!.id)
-    .maybeSingle()
-
   const pouleName = (poulePlayer?.poules as any)?.name ?? null
   const pouleId = (poulePlayer?.poules as any)?.id ?? null
   const position = poulePlayer?.position ?? null
 
-  // Count players in poule to show "X / Y"
+  // Count players in poule to show "X / Y" (depends on pouleId, so it can't join the batch above)
   let pouleSize = 0
   if (pouleId) {
     const { count } = await supabase
@@ -80,44 +113,6 @@ export default async function PlayerDashboard() {
       .eq('poule_id', pouleId)
     pouleSize = count ?? 0
   }
-
-  // Upcoming matches (where I'm player1 or player2 and not yet confirmed)
-  const { data: upcomingMatches } = await supabase
-    .from('matches')
-    .select(`
-      id,
-      scheduled_date,
-      location,
-      status,
-      player1_id,
-      player2_id,
-      player1:profiles!matches_player1_id_fkey(first_name, last_name, avatar_url),
-      player2:profiles!matches_player2_id_fkey(first_name, last_name, avatar_url)
-    `)
-    .or(`player1_id.eq.${user!.id},player2_id.eq.${user!.id}`)
-    .in('status', ['scheduled'])
-    .order('scheduled_date', { ascending: true })
-    .limit(3)
-
-  // Past/confirmed matches
-  const { data: recentMatches } = await supabase
-    .from('matches')
-    .select(`
-      id,
-      scheduled_date,
-      status,
-      score_player1,
-      score_player2,
-      winner_id,
-      player1_id,
-      player2_id,
-      player1:profiles!matches_player1_id_fkey(first_name, last_name, avatar_url),
-      player2:profiles!matches_player2_id_fkey(first_name, last_name, avatar_url)
-    `)
-    .or(`player1_id.eq.${user!.id},player2_id.eq.${user!.id}`)
-    .in('status', ['confirmed', 'played'])
-    .order('scheduled_date', { ascending: false })
-    .limit(3)
 
 
   // Helper to get opponent

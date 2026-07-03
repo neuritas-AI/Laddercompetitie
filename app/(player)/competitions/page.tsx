@@ -6,32 +6,36 @@ export default async function CompetitionsPage() {
   const { supabase, user, authError } = await createClientWithUser()
   if (authError || !user) return redirect('/login')
 
-  const { data: openCompetitions } = await supabase
-    .from('competitions')
-    .select('id, name, type, season_year, start_date, end_date, price, status')
-    .eq('status', 'open')
-    .order('season_year', { ascending: false })
-
-  const { data: registrations } = await supabase
-    .from('competition_registrations')
-    .select(`
-      status,
-      competitions (
-        id, name, type, season_year, start_date, end_date, price, status
-      )
-    `)
-    .eq('player_id', user.id)
-    .neq('status', 'cancelled')
-
-  const { data: teamRegistrations } = await supabase
-    .from('competition_team_registrations')
-    .select(`
-      status,
-      competitions (
-        id, name, type, season_year, start_date, end_date, price, status
-      )
-    `)
-    .neq('status', 'cancelled')
+  const [
+    { data: openCompetitions },
+    { data: registrations },
+    { data: teamRegistrations },
+  ] = await Promise.all([
+    supabase
+      .from('competitions')
+      .select('id, name, type, season_year, start_date, end_date, price, status')
+      .eq('status', 'open')
+      .order('season_year', { ascending: false }),
+    supabase
+      .from('competition_registrations')
+      .select(`
+        status,
+        competitions (
+          id, name, type, season_year, start_date, end_date, price, status
+        )
+      `)
+      .eq('player_id', user.id)
+      .neq('status', 'cancelled'),
+    supabase
+      .from('competition_team_registrations')
+      .select(`
+        status,
+        competitions (
+          id, name, type, season_year, start_date, end_date, price, status
+        )
+      `)
+      .neq('status', 'cancelled'),
+  ])
 
   const registrationMap = new Map<string, any>()
 

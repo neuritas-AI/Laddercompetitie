@@ -16,12 +16,22 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Gelijkspel is niet toegestaan. Er moet een winnaar zijn.' }, { status: 400 })
   }
 
-  // Validate match belongs to user and is ready for score entry
-  const { data: match, error: matchError } = await supabase
-    .from('matches')
-    .select('id, player1_id, player2_id, status')
-    .eq('id', matchId)
-    .single()
+  // Validate match belongs to user and is ready for score entry. These two reads
+  // don't depend on each other, so fetch them concurrently instead of in sequence.
+  const [{ data: match, error: matchError }, { data: existingPending }] = await Promise.all([
+    supabase
+      .from('matches')
+      .select('id, player1_id, player2_id, status')
+      .eq('id', matchId)
+      .single(),
+    supabase
+      .from('match_scores')
+      .select('id')
+      .eq('match_id', matchId)
+      .eq('status', 'pending')
+      .limit(1)
+      .maybeSingle(),
+  ])
 
   if (matchError || !match) return NextResponse.json({ error: 'Wedstrijd niet gevonden' }, { status: 404 })
   if (match.player1_id !== user.id && match.player2_id !== user.id) {
@@ -30,14 +40,6 @@ export async function POST(request: NextRequest) {
   if (match.status !== 'scheduled') {
     return NextResponse.json({ error: 'Score kan alleen ingevoerd worden voor een geplande wedstrijd.' }, { status: 400 })
   }
-
-  const { data: existingPending } = await supabase
-    .from('match_scores')
-    .select('id')
-    .eq('match_id', matchId)
-    .eq('status', 'pending')
-    .limit(1)
-    .maybeSingle()
 
   if (existingPending) {
     return NextResponse.json({ error: 'Er staat al een score klaar voor deze wedstrijd. Laat je tegenstander deze bevestigen of betwisten.' }, { status: 409 })
@@ -62,43 +64,37 @@ export async function POST(request: NextRequest) {
 
   if (scoreError) return NextResponse.json({ error: scoreError.message }, { status: 500 })
 
-  // Auto-confirm the submitted score on behalf of the submitting player
-  const { error: autoConfirmError } = await supabase
-    .from('match_confirmations')
-    .insert({
+  // Auto-confirm on behalf of the submitter, mark the match as played, and notify
+  // the opponent. None of these three depend on each other, so run them concurrently.
+  const opponentId = match.player1_id === user.id ? match.player2_id : match.player1_id
+  const [{ error: autoConfirmError }, { error: matchUpdateError }] = await Promise.all([
+    supabase.from('match_confirmations').insert({
       score_id: score.id,
       confirmed_by: user.id,
       action: 'approved',
       note: null,
-    })
+    }),
+    supabase
+      .from('matches')
+      .update({
+        status: 'played',
+        winner_id: winnerId,
+        score_player1: String(p1Score),
+        score_player2: String(p2Score),
+      })
+      .eq('id', matchId),
+    sendNotification(
+      opponentId,
+      'Score ingegeven',
+      'Je tegenstander heeft een score ingegeven. Controleer en bevestig de score.',
+      'score_entered',
+      `/matches/${matchId}/confirm`,
+      matchId
+    ),
+  ])
 
   if (autoConfirmError) return NextResponse.json({ error: autoConfirmError.message }, { status: 500 })
-
-  // Update match with entered score and mark as played pending confirmation
-  const { error: matchUpdateError } = await supabase
-    .from('matches')
-    .update({
-      status: 'played',
-      winner_id: winnerId,
-      score_player1: String(p1Score),
-      score_player2: String(p2Score),
-    })
-    .eq('id', matchId)
-
-  if (matchUpdateError) {
-    return NextResponse.json({ error: matchUpdateError.message }, { status: 500 })
-  }
-
-  // Create notification for opponent
-  const opponentId = match.player1_id === user.id ? match.player2_id : match.player1_id
-  await sendNotification(
-    opponentId,
-    'Score ingegeven',
-    'Je tegenstander heeft een score ingegeven. Controleer en bevestig de score.',
-    'score_entered',
-    `/matches/${matchId}/confirm`,
-    matchId
-  )
+  if (matchUpdateError) return NextResponse.json({ error: matchUpdateError.message }, { status: 500 })
 
   return NextResponse.json({ success: true, scoreId: score.id })
 }

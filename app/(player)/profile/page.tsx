@@ -1,15 +1,12 @@
 import { createClientWithUser } from '@/utils/supabase/server'
+import { getCachedProfile } from '@/lib/server-data'
 import ProfileClient from '@/components/profile-client'
 
 export default async function ProfilePage() {
-  const { supabase, user, authError } = await createClientWithUser()
+  const { user, authError } = await createClientWithUser()
   if (authError || !user) return null
 
-  const { data: profile } = await supabase
-    .from('profiles')
-    .select('first_name, last_name, email, phone, avatar_url, share_phone, preferences')
-    .eq('id', user!.id)
-    .maybeSingle()
+  const profile = await getCachedProfile(user.id)
 
   const metadata = (user?.user_metadata ?? {}) as Record<string, any>
 

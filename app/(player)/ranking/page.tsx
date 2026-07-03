@@ -1,5 +1,6 @@
 import { Trophy, Shield, Info } from 'lucide-react'
 import { createClientWithUser } from '@/utils/supabase/server'
+import { getCachedPoulePlayer } from '@/lib/server-data'
 
 export default async function RankingPage() {
   const { supabase, user, authError } = await createClientWithUser()
@@ -7,24 +8,19 @@ export default async function RankingPage() {
     <div className="min-h-[60vh] flex items-center justify-center p-8"><p className="text-muted-foreground">Niet ingelogd</p></div>
   )
 
-  // Get current user's poule
-  const { data: myPoulePlayer } = await supabase
-    .from('poule_players')
-    .select('poule_id, position, poules(name)')
-    .eq('player_id', user!.id)
-    .maybeSingle()
+  const [myPoulePlayer, { data: registrations }] = await Promise.all([
+    getCachedPoulePlayer(user.id),
+    supabase
+      .from('competition_registrations')
+      .select('id')
+      .eq('player_id', user.id)
+      .neq('status', 'cancelled')
+      .limit(1),
+  ])
 
   const myPouleId = myPoulePlayer?.poule_id ?? null
   const myPouleLabel = (myPoulePlayer?.poules as any)?.name ?? null
   const myPosition = myPoulePlayer?.position ?? null
-
-  const { data: registrations } = await supabase
-    .from('competition_registrations')
-    .select('id')
-    .eq('player_id', user!.id)
-    .neq('status', 'cancelled')
-    .limit(1)
-
   const hasCompetition = (registrations?.length ?? 0) > 0
 
   // Fetch all players in same poule

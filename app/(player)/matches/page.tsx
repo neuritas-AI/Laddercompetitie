@@ -1,33 +1,11 @@
 import { redirect } from 'next/navigation'
 import { createClientWithUser } from '@/utils/supabase/server'
+import { getCachedPoulePlayer } from '@/lib/server-data'
 import MatchesClient from '@/components/matches-client'
 
 export default async function MatchesPage() {
   const { supabase, user, authError } = await createClientWithUser()
   if (authError || !user) return redirect('/login')
-
-  // Get poule info
-  const { data: poulePlayer } = await supabase
-    .from('poule_players')
-    .select('poule_id, poules(name)')
-    .eq('player_id', user!.id)
-    .maybeSingle()
-
-  const pouleName = (poulePlayer?.poules as any)?.name ?? null
-
-  const { data: registrations } = await supabase
-    .from('competition_registrations')
-    .select('id')
-    .eq('player_id', user!.id)
-    .neq('status', 'cancelled')
-    .limit(1)
-
-  const { data: teamRegistrations } = await supabase
-    .from('competition_team_registrations')
-    .select('id')
-    .limit(1)
-
-  const hasCompetition = (registrations?.length ?? 0) > 0 || (teamRegistrations?.length ?? 0) > 0
 
   const matchSelect = `
     id,
@@ -44,21 +22,42 @@ export default async function MatchesPage() {
     poule:poules(name)
   `
 
-  // Upcoming matches
-  const { data: upcoming } = await supabase
-    .from('matches')
-    .select(matchSelect)
-    .or(`player1_id.eq.${user!.id},player2_id.eq.${user!.id}`)
-    .in('status', ['scheduled'])
-    .order('scheduled_date', { ascending: true })
+  const [
+    poulePlayer,
+    { data: registrations },
+    { data: teamRegistrations },
+    { data: upcoming },
+    { data: past },
+  ] = await Promise.all([
+    getCachedPoulePlayer(user.id),
+    supabase
+      .from('competition_registrations')
+      .select('id')
+      .eq('player_id', user.id)
+      .neq('status', 'cancelled')
+      .limit(1),
+    supabase
+      .from('competition_team_registrations')
+      .select('id')
+      .limit(1),
+    // Upcoming matches
+    supabase
+      .from('matches')
+      .select(matchSelect)
+      .or(`player1_id.eq.${user.id},player2_id.eq.${user.id}`)
+      .in('status', ['scheduled'])
+      .order('scheduled_date', { ascending: true }),
+    // Past/confirmed matches
+    supabase
+      .from('matches')
+      .select(matchSelect)
+      .or(`player1_id.eq.${user.id},player2_id.eq.${user.id}`)
+      .in('status', ['confirmed', 'played', 'disputed'])
+      .order('scheduled_date', { ascending: false }),
+  ])
 
-  // Past/confirmed matches
-  const { data: past } = await supabase
-    .from('matches')
-    .select(matchSelect)
-    .or(`player1_id.eq.${user!.id},player2_id.eq.${user!.id}`)
-    .in('status', ['confirmed', 'played', 'disputed'])
-    .order('scheduled_date', { ascending: false })
+  const pouleName = (poulePlayer?.poules as any)?.name ?? null
+  const hasCompetition = (registrations?.length ?? 0) > 0 || (teamRegistrations?.length ?? 0) > 0
 
   return (
     <MatchesClient

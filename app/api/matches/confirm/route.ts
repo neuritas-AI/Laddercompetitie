@@ -33,15 +33,26 @@ export async function POST(request: NextRequest) {
   const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY!
   const adminDb = createSupabaseClient(supabaseUrl, serviceRoleKey)
 
-  const { data: match, error: matchError } = await adminDb
-    .from('matches')
-    .select('id, poule_id, player1_id, player2_id, team1_id, team2_id, status')
-    .eq('id', score.match_id)
-    .single()
+  // The match lookup and the existing-confirmations check don't depend on each
+  // other (both only need scoreId/score.match_id, known at this point), so run
+  // them concurrently instead of sequentially.
+  const [
+    { data: match, error: matchError },
+    { data: existingConfirmations, error: confirmationsError },
+  ] = await Promise.all([
+    adminDb
+      .from('matches')
+      .select('id, poule_id, player1_id, player2_id, team1_id, team2_id, status')
+      .eq('id', score.match_id)
+      .single(),
+    supabase.from('match_confirmations').select('id, confirmed_by, action').eq('score_id', scoreId),
+  ])
 
   if (matchError || !match) {
     return NextResponse.json({ error: 'Wedstrijd niet gevonden' }, { status: 404 })
   }
+
+  if (confirmationsError) return NextResponse.json({ error: confirmationsError.message }, { status: 500 })
 
   if (match.status !== 'played') {
     return NextResponse.json({ error: 'Deze score kan op dit moment niet worden bevestigd.' }, { status: 400 })
@@ -70,13 +81,6 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Geen toegang' }, { status: 403 })
   }
 
-  const { data: existingConfirmations, error: confirmationsError } = await supabase
-    .from('match_confirmations')
-    .select('id, confirmed_by, action')
-    .eq('score_id', scoreId)
-
-  if (confirmationsError) return NextResponse.json({ error: confirmationsError.message }, { status: 500 })
-
   const hasSubmittedPlayerConfirmation = existingConfirmations?.some(
     (confirmation: any) => confirmation.confirmed_by === score.submitted_by
   )
@@ -102,18 +106,12 @@ export async function POST(request: NextRequest) {
 
   if (action === 'approved') {
     if (hasOtherConfirmation) {
-      const { error: scoreUpdateError } = await supabase
-        .from('match_scores')
-        .update({ status: 'confirmed' })
-        .eq('id', scoreId)
+      const [{ error: scoreUpdateError }, { error: matchUpdateError }] = await Promise.all([
+        supabase.from('match_scores').update({ status: 'confirmed' }).eq('id', scoreId),
+        supabase.from('matches').update({ status: 'confirmed' }).eq('id', match.id),
+      ])
 
       if (scoreUpdateError) return NextResponse.json({ error: scoreUpdateError.message }, { status: 500 })
-
-      const { error: matchUpdateError } = await supabase
-        .from('matches')
-        .update({ status: 'confirmed' })
-        .eq('id', match.id)
-
       if (matchUpdateError) return NextResponse.json({ error: matchUpdateError.message }, { status: 500 })
 
       const loserId = match.player1_id === score.winner_id ? match.player2_id : match.player1_id
@@ -184,14 +182,13 @@ export async function POST(request: NextRequest) {
           return new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
         })
 
-        for (let index = 0; index < ordered.length; index++) {
-          const player = ordered[index]
-          const { error: positionError } = await adminDb
-            .from('poule_players')
-            .update({ position: index + 1 })
-            .eq('id', player.id)
-          if (positionError) return NextResponse.json({ error: positionError.message }, { status: 500 })
-        }
+        const positionResults = await Promise.all(
+          ordered.map((player, index) =>
+            adminDb.from('poule_players').update({ position: index + 1 }).eq('id', player.id)
+          )
+        )
+        const positionError = positionResults.find((r) => r.error)?.error
+        if (positionError) return NextResponse.json({ error: positionError.message }, { status: 500 })
       }
 
       await sendNotification(
@@ -204,18 +201,12 @@ export async function POST(request: NextRequest) {
       )
     }
   } else {
-    const { error: scoreUpdateError } = await supabase
-      .from('match_scores')
-      .update({ status: 'disputed' })
-      .eq('id', scoreId)
+    const [{ error: scoreUpdateError }, { error: matchUpdateError }] = await Promise.all([
+      supabase.from('match_scores').update({ status: 'disputed' }).eq('id', scoreId),
+      supabase.from('matches').update({ status: 'disputed' }).eq('id', match.id),
+    ])
 
     if (scoreUpdateError) return NextResponse.json({ error: scoreUpdateError.message }, { status: 500 })
-
-    const { error: matchUpdateError } = await supabase
-      .from('matches')
-      .update({ status: 'disputed' })
-      .eq('id', match.id)
-
     if (matchUpdateError) return NextResponse.json({ error: matchUpdateError.message }, { status: 500 })
 
     await sendNotification(

@@ -59,7 +59,12 @@ export default async function LoginPage({
             />
           </div>
           <div className="space-y-2">
-            <Label htmlFor="password">Wachtwoord</Label>
+            <div className="flex items-center justify-between">
+              <Label htmlFor="password">Wachtwoord</Label>
+              <Link href="/forgot-password" className="text-sm font-semibold text-primary hover:underline">
+                Wachtwoord vergeten?
+              </Link>
+            </div>
             <Input
               id="password"
               name="password"

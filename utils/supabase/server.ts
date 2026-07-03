@@ -1,5 +1,6 @@
 import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
+import { cache } from 'react'
 
 export async function createClient() {
   const cookieStore = await cookies()
@@ -28,16 +29,23 @@ export async function createClient() {
   )
 }
 
-// Safe helper that returns the supabase client and a user when possible.
-export async function createClientWithUser() {
+// auth.getUser() makes a network round-trip to Supabase to revalidate the JWT.
+// Layouts and the pages they wrap each call createClientWithUser(), which would
+// otherwise repeat that round-trip multiple times for a single request. React's
+// cache() memoizes the result per request so it only happens once.
+const getAuthedUser = cache(async () => {
   const supabase = await createClient()
   try {
     const res = await supabase.auth.getUser()
-    // result shape may include error
-    const user = res?.data?.user ?? null
-    return { supabase, user, authError: res?.error ?? null }
+    return { user: res?.data?.user ?? null, authError: res?.error ?? null }
   } catch (err) {
-    // If auth throws (invalid refresh token etc.), return null user but keep client
-    return { supabase, user: null, authError: err }
+    return { user: null, authError: err }
   }
+})
+
+// Safe helper that returns the supabase client and a user when possible.
+export async function createClientWithUser() {
+  const supabase = await createClient()
+  const { user, authError } = await getAuthedUser()
+  return { supabase, user, authError }
 }
