@@ -28,26 +28,32 @@ export async function GET() {
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 
-  // Filter matches to those that have a pending score submitted by the opponent
-  const filtered = (matches ?? []).filter((m: any) => {
-    if (!m.match_scores || m.match_scores.length === 0) return false
-    const pending = m.match_scores.find((s: any) => s.status === 'pending')
-    if (!pending) return false
-    return pending.submitted_by !== user.id
-  }).map((m: any) => ({
-    id: m.id,
-    scheduled_date: m.scheduled_date,
-    location: m.location,
-    status: m.status,
-    score_player1: m.score_player1,
-    score_player2: m.score_player2,
-    winner_id: m.winner_id,
-    player1_id: m.player1_id,
-    player2_id: m.player2_id,
-    player1: Array.isArray(m.player1) ? m.player1[0] : m.player1,
-    player2: Array.isArray(m.player2) ? m.player2[0] : m.player2,
-    poule: m.poule,
-  }))
+  // Every match here has a pending score. Include it for BOTH participants so the
+  // submitter can still see it under "Score bevestigen" (just without action
+  // buttons) instead of the match disappearing from every tab until the
+  // opponent acts. `canConfirm` tells the client whether the current user is
+  // the one who still needs to confirm/dispute it.
+  const filtered = (matches ?? [])
+    .map((m: any) => {
+      const pending = (m.match_scores ?? []).find((s: any) => s.status === 'pending')
+      return { m, pending }
+    })
+    .filter(({ pending }: any) => Boolean(pending))
+    .map(({ m, pending }: any) => ({
+      id: m.id,
+      scheduled_date: m.scheduled_date,
+      location: m.location,
+      status: m.status,
+      score_player1: m.score_player1,
+      score_player2: m.score_player2,
+      winner_id: m.winner_id,
+      player1_id: m.player1_id,
+      player2_id: m.player2_id,
+      player1: Array.isArray(m.player1) ? m.player1[0] : m.player1,
+      player2: Array.isArray(m.player2) ? m.player2[0] : m.player2,
+      poule: m.poule,
+      canConfirm: pending.submitted_by !== user.id,
+    }))
 
   return NextResponse.json({ matches: filtered })
 }

@@ -23,6 +23,10 @@ interface Match {
   player1: { first_name: string | null; last_name: string | null; avatar_url: string | null } | null
   player2: { first_name: string | null; last_name: string | null; avatar_url: string | null } | null
   poule: { name: string } | null
+  // Only present on matches with a pending score (the "Score bevestigen" tab).
+  // True when the current user is the one who still needs to confirm/dispute it;
+  // false when the current user is the one who submitted it and is waiting.
+  canConfirm?: boolean
 }
 
 interface Props {
@@ -146,8 +150,13 @@ export default function MatchesClient({ upcoming, past, userId, pouleName, hasCo
     const isPast = isConfirmed || isPendingConfirmation || isDisputed
     const poule = (match.poule as any)?.name ?? pouleName ?? ''
 
+    const waitingForMe = isPendingConfirmation && match.canConfirm !== false
+    const waitingForOpponent = isPendingConfirmation && match.canConfirm === false
+
     const statusBadge = isConfirmed
       ? { label: 'Bevestigd', className: 'text-green-600 bg-green-100' }
+      : waitingForOpponent
+      ? { label: 'Wacht op tegenstander', className: 'text-orange-700 bg-orange-100' }
       : isPendingConfirmation
       ? { label: 'Wacht op bevestiging', className: 'text-orange-700 bg-orange-100' }
       : isDisputed
@@ -218,13 +227,18 @@ export default function MatchesClient({ upcoming, past, userId, pouleName, hasCo
                 <PenSquare className="w-4 h-4 mr-2" /> Score
               </Button>
             )}
-            {isPendingConfirmation && (
+            {waitingForMe && (
               <a
                 href={`/matches/redirect/${match.id}/confirm`}
                 className="inline-flex items-center justify-center rounded-xl border border-primary px-4 py-3 text-sm font-bold text-primary transition hover:bg-primary/10"
               >
                 Score bevestigen
               </a>
+            )}
+            {waitingForOpponent && (
+              <span className="bg-orange-100 text-orange-700 text-[10px] uppercase px-3 py-1.5 rounded-full font-bold flex items-center gap-1.5">
+                <AlertCircle className="h-4 w-4" /> Wacht op tegenstander
+              </span>
             )}
             {isConfirmed && (
               <span className="bg-green-100 text-green-800 text-[10px] uppercase px-3 py-1.5 rounded-full font-bold flex items-center gap-1.5">

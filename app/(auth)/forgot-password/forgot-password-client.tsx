@@ -7,6 +7,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { AlertCircle, CheckCircle, Loader2 } from 'lucide-react'
 import { createClient } from '@/utils/supabase/client'
+import { getSiteUrl } from '@/lib/site-url'
 
 const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 
@@ -30,7 +31,7 @@ export default function ForgotPasswordClient() {
     try {
       const supabase = createClient()
       const { error: resetError } = await supabase.auth.resetPasswordForEmail(trimmedEmail, {
-        redirectTo: `${window.location.origin}/reset-password`,
+        redirectTo: `${getSiteUrl()}/reset-password`,
       })
 
       // Supabase intentionally doesn't reveal whether an email address is
