@@ -1,7 +1,7 @@
 import Link from 'next/link'
 import { ArrowLeft, Mail, Phone, Calendar, CheckCircle, Ban, Shield, Trophy, Users } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { createClient } from '@/utils/supabase/server'
+import { requireAdminClient } from '@/utils/supabase/admin'
 import { REGISTRATION_STATUS_LABELS } from '@/lib/competitions'
 import { getDisplayName, getInitials } from '@/lib/profile'
 
@@ -18,7 +18,20 @@ export default async function AdminPlayerDetailPage({
   params: Promise<{ playerId: string }>
 }) {
   const { playerId } = await params
-  const supabase = await createClient()
+  const supabase = await requireAdminClient()
+
+  if (!supabase) {
+    return (
+      <div className="p-6 lg:p-8">
+        <Link href="/admin/players" className="inline-flex items-center gap-2 text-sm font-semibold text-muted-foreground hover:text-foreground mb-6">
+          <ArrowLeft className="w-4 h-4" /> Terug naar spelers
+        </Link>
+        <div className="flex flex-col items-center justify-center py-24 text-center bg-card rounded-[1.5rem] border border-border/50">
+          <p className="font-bold text-muted-foreground text-lg">Niet geautoriseerd</p>
+        </div>
+      </div>
+    )
+  }
 
   const { data: player } = await supabase
     .from('profiles')
