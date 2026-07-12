@@ -27,13 +27,21 @@ export default async function AdminTeamsPage() {
     `)
     .order('created_at', { ascending: false })
 
-  // Fetch players for the team creation dialog
-  const { data: players } = await supabase
-    .from('profiles')
-    .select('id, first_name, last_name, email')
-    .eq('role', 'player')
-    .eq('is_active', true)
-    .order('first_name')
+  // Fetch players and doubles competitions for the team creation dialog
+  const [{ data: players }, { data: competitions }] = await Promise.all([
+    supabase
+      .from('profiles')
+      .select('id, first_name, last_name, email')
+      .eq('role', 'player')
+      .eq('is_active', true)
+      .order('first_name'),
+    supabase
+      .from('competitions')
+      .select('id, name, season_year')
+      .eq('is_active', true)
+      .like('type', 'double%')
+      .order('season_year', { ascending: false }),
+  ])
 
   return (
     <div className="space-y-6 p-6 lg:p-8">
@@ -42,7 +50,7 @@ export default async function AdminTeamsPage() {
           <h1 className="text-3xl font-bold tracking-tight text-foreground">Dubbelteams</h1>
           <p className="text-muted-foreground">Beheer de dubbelteams en hun samenstelling.</p>
         </div>
-        <AddTeamDialog players={players ?? []} />
+        <AddTeamDialog players={players ?? []} competitions={competitions ?? []} />
       </div>
 
       <Card className="border-0 shadow-sm overflow-hidden">

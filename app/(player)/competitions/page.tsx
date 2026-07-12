@@ -13,7 +13,7 @@ export default async function CompetitionsPage() {
   ] = await Promise.all([
     supabase
       .from('competitions')
-      .select('id, name, type, season_year, start_date, end_date, price, status')
+      .select('id, name, type, season_year, start_date, end_date, price, status, max_participants')
       .eq('status', 'open')
       .order('season_year', { ascending: false }),
     supabase
@@ -36,6 +36,30 @@ export default async function CompetitionsPage() {
       `)
       .neq('status', 'cancelled'),
   ])
+
+  const openCompetitionIds = (openCompetitions ?? []).map(c => c.id)
+  const [{ data: singleCounts }, { data: teamCounts }] = openCompetitionIds.length
+    ? await Promise.all([
+        supabase
+          .from('competition_registrations')
+          .select('competition_id')
+          .in('competition_id', openCompetitionIds)
+          .neq('status', 'cancelled'),
+        supabase
+          .from('competition_team_registrations')
+          .select('competition_id')
+          .in('competition_id', openCompetitionIds)
+          .neq('status', 'cancelled'),
+      ])
+    : [{ data: [] }, { data: [] }]
+
+  const participantCountMap = new Map<string, number>()
+  ;(singleCounts ?? []).forEach((r) => {
+    participantCountMap.set(r.competition_id, (participantCountMap.get(r.competition_id) ?? 0) + 1)
+  })
+  ;(teamCounts ?? []).forEach((r) => {
+    participantCountMap.set(r.competition_id, (participantCountMap.get(r.competition_id) ?? 0) + 2)
+  })
 
   const registrationMap = new Map<string, any>()
 
@@ -78,6 +102,7 @@ export default async function CompetitionsPage() {
   const competitions = (openCompetitions ?? []).map(c => ({
     ...c,
     price: Number(c.price ?? 0),
+    isFull: c.max_participants != null && (participantCountMap.get(c.id) ?? 0) >= c.max_participants,
   }))
 
   return (

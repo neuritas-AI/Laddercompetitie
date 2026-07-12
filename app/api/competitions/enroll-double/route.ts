@@ -13,10 +13,22 @@ export async function POST(request: Request) {
   if (partnerId === user.id) return NextResponse.json({ error: 'Je kan niet jezelf als partner kiezen.' }, { status: 400 })
 
   // Validate competition
-  const { data: competition } = await supabase.from('competitions').select('id, type, price, status').eq('id', competitionId).single()
+  const { data: competition } = await supabase.from('competitions').select('id, type, price, status, max_participants').eq('id', competitionId).single()
   if (!competition) return NextResponse.json({ error: 'Competitie niet gevonden' }, { status: 404 })
   if (!competition.type.startsWith('double')) return NextResponse.json({ error: 'Competitie is geen dubbelcompetitie' }, { status: 400 })
   if (competition.status !== 'open') return NextResponse.json({ error: 'Competitie niet open' }, { status: 400 })
+
+  if (competition.max_participants) {
+    const { count } = await supabase
+      .from('competition_team_registrations')
+      .select('*', { count: 'exact', head: true })
+      .eq('competition_id', competitionId)
+      .neq('status', 'cancelled')
+
+    if (count !== null && count * 2 >= competition.max_participants) {
+      return NextResponse.json({ error: 'Deze competitie is vol.' }, { status: 400 })
+    }
+  }
 
   // Check partner exists and is active
   const [{ data: partner }, { data: self }] = await Promise.all([

@@ -13,6 +13,7 @@ export default function EditCompetitionDialog({ competition }: { competition: an
   const [open, setOpen] = useState(false)
   const [isPending, startTransition] = useTransition()
   const [error, setError] = useState<string | null>(null)
+  const [noLimit, setNoLimit] = useState(!competition.max_participants)
 
   async function onSubmit(formData: FormData) {
     setError(null)
@@ -90,7 +91,26 @@ export default function EditCompetitionDialog({ competition }: { competition: an
             </div>
             <div className="space-y-2">
               <Label htmlFor="max_participants">Max. deelnemers</Label>
-              <Input id="max_participants" name="max_participants" type="number" min="2" defaultValue={competition.max_participants || 32} />
+              <label className="flex items-center gap-2 h-9 text-sm text-muted-foreground font-medium cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={noLimit}
+                  onChange={(e) => setNoLimit(e.target.checked)}
+                  className="h-4 w-4 rounded border-gray-300 text-primary"
+                />
+                Geen maximum
+              </label>
+              {!noLimit && (
+                <Input
+                  id="max_participants"
+                  name="max_participants"
+                  type="number"
+                  min="2"
+                  placeholder="Bijv. 32"
+                  defaultValue={competition.max_participants || ''}
+                  required
+                />
+              )}
             </div>
             <div className="space-y-2">
               <Label htmlFor="price">Kostprijs (€)</Label>

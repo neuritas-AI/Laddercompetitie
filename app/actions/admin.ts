@@ -87,7 +87,10 @@ export async function createCompetition(formData: FormData): Promise<ActionRespo
     const start_date = formData.get('start_date') as string
     const end_date = formData.get('end_date') as string
     const status = (formData.get('status') as string) || 'draft'
-    const max_participants = parseInt(formData.get('max_participants') as string, 10) || 32
+    // No limit by default: only cap participants when the admin explicitly
+    // fills in a number (an empty/missing field means "Geen maximum").
+    const maxParticipantsRaw = parseInt(formData.get('max_participants') as string, 10)
+    const max_participants = isNaN(maxParticipantsRaw) ? null : maxParticipantsRaw
     const price = parseFloat(formData.get('price') as string) || 0
 
     if (!name || !type || !season_year || !start_date || !end_date) {
@@ -1072,10 +1075,11 @@ export async function createTeam(formData: FormData): Promise<ActionResponse> {
     const { supabase } = await ensureAdmin()
 
     const name = formData.get('name') as string
+    const competition_id = formData.get('competition_id') as string
     const player1_id = formData.get('player1_id') as string
     const player2_id = formData.get('player2_id') as string
 
-    if (!name || !player1_id || !player2_id) {
+    if (!name || !competition_id || !player1_id || !player2_id) {
       return { success: false, error: 'Alle velden zijn verplicht.' }
     }
     if (player1_id === player2_id) {
@@ -1084,7 +1088,7 @@ export async function createTeam(formData: FormData): Promise<ActionResponse> {
 
     const { data: teamData, error: teamError } = await supabase
       .from('teams')
-      .insert({ name })
+      .insert({ name, competition_id })
       .select()
       .single()
 

@@ -27,6 +27,7 @@ export type CompetitionItem = {
   price: number
   status: string
   registrationStatus?: string | null
+  isFull?: boolean
 }
 
 const typeLabels: Record<string, string> = {
@@ -70,6 +71,7 @@ export default function CompetitionsClient({
   const availableCompetitions = openCompetitions.filter(c => !registeredIds.has(c.id))
 
   function handleEnroll(competition: CompetitionItem) {
+    if (competition.isFull) return
     setSelectedCompetition(competition)
     setPaymentMsg(null)
     if (competition.type.startsWith('double')) {
@@ -162,11 +164,21 @@ export default function CompetitionsClient({
 
             {showEnrollButton && (() => {
               const isRegistered = registeredIds.has(competition.id)
-              return isRegistered ? (
-                <span className="inline-flex items-center gap-2 bg-green-100 text-green-800 text-sm font-bold uppercase px-3 py-2 rounded-xl">
-                  <CheckCircle2 className="w-4 h-4" /> Ingeschreven
-                </span>
-              ) : (
+              if (isRegistered) {
+                return (
+                  <span className="inline-flex items-center gap-2 bg-green-100 text-green-800 text-sm font-bold uppercase px-3 py-2 rounded-xl">
+                    <CheckCircle2 className="w-4 h-4" /> Ingeschreven
+                  </span>
+                )
+              }
+              if (competition.isFull) {
+                return (
+                  <span className="inline-flex items-center gap-2 bg-red-100 text-red-800 text-sm font-bold uppercase px-3 py-2 rounded-xl">
+                    Volzet
+                  </span>
+                )
+              }
+              return (
                 <Button
                   onClick={() => handleEnroll(competition)}
                   disabled={isPending}

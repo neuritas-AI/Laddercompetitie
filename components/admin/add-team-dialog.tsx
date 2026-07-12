@@ -16,7 +16,13 @@ type Player = {
   email: string
 }
 
-export default function AddTeamDialog({ players }: { players: Player[] }) {
+type Competition = {
+  id: string
+  name: string
+  season_year: number
+}
+
+export default function AddTeamDialog({ players, competitions }: { players: Player[]; competitions: Competition[] }) {
   const [open, setOpen] = useState(false)
   const [isPending, startTransition] = useTransition()
   const [error, setError] = useState<string | null>(null)
@@ -49,7 +55,21 @@ export default function AddTeamDialog({ players }: { players: Player[] }) {
             <Label htmlFor="name">Teamnaam</Label>
             <Input id="name" name="name" required placeholder="Teamnaam" />
           </div>
-          
+
+          <div className="space-y-2">
+            <Label htmlFor="competition_id">Competitie</Label>
+            <Select name="competition_id" required>
+              <SelectTrigger>
+                <SelectValue placeholder="Kies competitie" />
+              </SelectTrigger>
+              <SelectContent>
+                {competitions.map(c => (
+                  <SelectItem key={c.id} value={c.id}>{c.name} ({c.season_year})</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
           <div className="space-y-2">
             <Label htmlFor="player1_id">Speler 1</Label>
             <Select name="player1_id" required>

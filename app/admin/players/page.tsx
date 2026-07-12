@@ -1,3 +1,4 @@
+import Link from 'next/link'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Ban, CheckCircle, Shield } from 'lucide-react'
 import { createClient } from '@/utils/supabase/server'
@@ -38,23 +39,23 @@ export default async function AdminPlayersPage() {
                 const initials = name.slice(0, 2).toUpperCase()
                 return (
                   <div key={player.id} className="flex flex-col sm:flex-row items-start sm:items-center justify-between p-4 sm:p-5 hover:bg-muted/10 transition-colors gap-4">
-                    <div className="flex items-center gap-4">
+                    <Link href={`/admin/players/${player.id}`} className="flex items-center gap-4 group min-w-0">
                       <div className="w-12 h-12 rounded-full overflow-hidden bg-gray-200 shrink-0 flex items-center justify-center font-black text-gray-500">
                         {player.avatar_url
                           ? <img src={player.avatar_url} alt={name} className="w-full h-full object-cover" />
                           : initials
                         }
                       </div>
-                      <div>
+                      <div className="min-w-0">
                         <div className="flex items-center gap-2">
-                          <p className="font-bold text-foreground">{name}</p>
+                          <p className="font-bold text-foreground group-hover:text-primary transition-colors truncate">{name}</p>
                           {player.role === 'admin' && (
                             <span className="text-[10px] font-bold uppercase tracking-wider bg-red-100 text-red-800 px-2 py-0.5 rounded-full">Admin</span>
                           )}
                         </div>
-                        <p className="text-xs text-muted-foreground font-medium">{player.email}</p>
+                        <p className="text-xs text-muted-foreground font-medium truncate">{player.email}</p>
                       </div>
-                    </div>
+                    </Link>
 
                     <div className="flex items-center flex-wrap gap-4 w-full sm:w-auto">
                       <div className="flex flex-col gap-1 min-w-[100px]">

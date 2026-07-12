@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useTransition, useEffect } from 'react'
+import Link from 'next/link'
 import { formatDateInBrussels } from '@/lib/brussels'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -56,9 +57,10 @@ export default function MatchesClient({ upcoming, past, userId, pouleName, hasCo
   const getOpponent = (match: Match) => {
     const isPlayer1 = match.player1_id === userId
     const opp = isPlayer1 ? match.player2 : match.player1
-    if (!opp) return { name: 'Tegenstander', avatar: null, phone: null, sharePhone: false }
+    const opponentId = isPlayer1 ? match.player2_id : match.player1_id
+    if (!opp) return { id: opponentId, name: 'Tegenstander', avatar: null, phone: null, sharePhone: false }
     const name = `${opp.first_name || ''} ${opp.last_name || ''}`.trim() || 'Tegenstander'
-    return { name, avatar: opp.avatar_url, phone: (opp as any).phone, sharePhone: (opp as any).share_phone }
+    return { id: opponentId, name, avatar: opp.avatar_url, phone: (opp as any).phone, sharePhone: (opp as any).share_phone }
   }
 
   const formatDate = (d: string | null) => {
@@ -138,7 +140,7 @@ export default function MatchesClient({ upcoming, past, userId, pouleName, hasCo
   }
 
   const renderMatchRow = (match: Match) => {
-    const { name: oppName, avatar: oppAvatar, phone, sharePhone } = getOpponent(match)
+    const { id: oppId, name: oppName, avatar: oppAvatar, phone, sharePhone } = getOpponent(match)
     const isPlayer1 = match.player1_id === userId
     const myScore = isPlayer1 ? match.score_player1 : match.score_player2
     const oppScore = isPlayer1 ? match.score_player2 : match.score_player1
@@ -166,7 +168,7 @@ export default function MatchesClient({ upcoming, past, userId, pouleName, hasCo
     return (
       <div key={match.id} className="p-4 rounded-xl transition-colors hover:bg-muted/10 relative">
         <div className="flex flex-col sm:flex-row gap-4 justify-between sm:items-center">
-          <div className="flex items-center gap-4">
+          <Link href={`/players/${oppId}`} className="flex items-center gap-4 group">
             <div className="w-14 h-14 rounded-full bg-gray-200 overflow-hidden shrink-0 shadow-inner">
               {oppAvatar ? (
                 <img src={oppAvatar} alt={oppName} className="w-full h-full object-cover" />
@@ -175,7 +177,7 @@ export default function MatchesClient({ upcoming, past, userId, pouleName, hasCo
               )}
             </div>
             <div>
-              <p className="font-black text-lg text-foreground">{oppName}</p>
+              <p className="font-black text-lg text-foreground group-hover:text-primary transition-colors">{oppName}</p>
               <div className="flex flex-col gap-0.5 mt-0.5">
                 <p className="text-xs text-muted-foreground font-bold tracking-wider uppercase">{poule}</p>
                 {sharePhone ? (
@@ -185,7 +187,7 @@ export default function MatchesClient({ upcoming, past, userId, pouleName, hasCo
                 )}
               </div>
             </div>
-          </div>
+          </Link>
 
           {!isPast && (
             <div className="flex gap-2">

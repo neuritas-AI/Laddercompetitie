@@ -121,6 +121,8 @@ export default async function PlayerDashboard() {
     return isPlayer1 ? match.player2 : match.player1
   }
 
+  const getOpponentId = (match: any) => (match.player1_id === user!.id ? match.player2_id : match.player1_id)
+
   const formatDate = (d: string | null) => {
     if (!d) return null
     return formatDateInBrussels(d, { weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })
@@ -279,19 +281,21 @@ export default async function PlayerDashboard() {
                   const oppName = opp ? `${opp.first_name || ''} ${opp.last_name || ''}`.trim() || 'Tegenstander' : 'Tegenstander'
                   return (
                     <div key={match.id} className="flex items-center gap-4 p-4 hover:bg-muted/30 transition-colors rounded-xl">
-                      <div className="w-12 h-12 rounded-full bg-gray-200 overflow-hidden shrink-0">
-                        {opp?.avatar_url ? (
-                          <img src={opp.avatar_url} alt={oppName} className="w-full h-full object-cover" />
-                        ) : (
-                          <div className="w-full h-full flex items-center justify-center text-gray-500 font-bold text-lg">
-                            {oppName.charAt(0)}
-                          </div>
-                        )}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="font-bold text-sm text-foreground truncate">{oppName}</p>
-                        <p className="text-xs text-muted-foreground font-medium">{pouleName ?? 'Geen poule'}</p>
-                      </div>
+                      <Link href={`/players/${getOpponentId(match)}`} className="flex items-center gap-4 flex-1 min-w-0 group">
+                        <div className="w-12 h-12 rounded-full bg-gray-200 overflow-hidden shrink-0">
+                          {opp?.avatar_url ? (
+                            <img src={opp.avatar_url} alt={oppName} className="w-full h-full object-cover" />
+                          ) : (
+                            <div className="w-full h-full flex items-center justify-center text-gray-500 font-bold text-lg">
+                              {oppName.charAt(0)}
+                            </div>
+                          )}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="font-bold text-sm text-foreground truncate group-hover:text-primary transition-colors">{oppName}</p>
+                          <p className="text-xs text-muted-foreground font-medium">{pouleName ?? 'Geen poule'}</p>
+                        </div>
+                      </Link>
                       <div className="hidden sm:flex items-center gap-2 text-xs font-medium text-muted-foreground mr-4">
                         <Calendar className="w-3.5 h-3.5" />
                         {match.scheduled_date ? formatDate(match.scheduled_date) : 'Nog geen datum gepland'}
@@ -372,14 +376,16 @@ export default async function PlayerDashboard() {
                     const won = match.winner_id === user!.id
                     return (
                       <div key={match.id} className="flex items-center gap-3">
-                        <div className="w-8 h-8 rounded-full bg-gray-200 overflow-hidden shrink-0">
-                          {opp?.avatar_url ? (
-                            <img src={opp.avatar_url} alt={oppName} className="w-full h-full object-cover" />
-                          ) : (
-                            <div className="w-full h-full flex items-center justify-center text-gray-500 font-bold text-sm">{oppName.charAt(0)}</div>
-                          )}
-                        </div>
-                        <p className="text-sm font-bold flex-1 truncate">{oppName}</p>
+                        <Link href={`/players/${getOpponentId(match)}`} className="flex items-center gap-3 flex-1 min-w-0 group">
+                          <div className="w-8 h-8 rounded-full bg-gray-200 overflow-hidden shrink-0">
+                            {opp?.avatar_url ? (
+                              <img src={opp.avatar_url} alt={oppName} className="w-full h-full object-cover" />
+                            ) : (
+                              <div className="w-full h-full flex items-center justify-center text-gray-500 font-bold text-sm">{oppName.charAt(0)}</div>
+                            )}
+                          </div>
+                          <p className="text-sm font-bold flex-1 truncate group-hover:text-primary transition-colors">{oppName}</p>
+                        </Link>
                         {myScore && oppScore && (
                           <span className="text-xs font-black">{myScore} – {oppScore}</span>
                         )}
