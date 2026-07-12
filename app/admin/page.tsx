@@ -1,21 +1,24 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Users, AlertCircle, GitCommitHorizontal, ListOrdered } from 'lucide-react'
+import { Users, AlertCircle, GitCommitHorizontal, ListOrdered, Trophy } from 'lucide-react'
 import { createClient } from '@/utils/supabase/server'
 import Link from 'next/link'
 
 export default async function AdminDashboard() {
   const supabase = await createClient()
 
-  // Real counts
+  // Real counts, always filtered to what the card label promises so the
+  // numbers stay accurate as competitions/poules/players get added or removed.
   const [
     { count: playerCount },
     { count: teamCount },
     { count: pouleCount },
+    { count: competitionCount },
     { count: pendingCount },
   ] = await Promise.all([
-    supabase.from('profiles').select('*', { count: 'exact', head: true }).eq('role', 'player'),
+    supabase.from('profiles').select('*', { count: 'exact', head: true }).eq('role', 'player').eq('is_active', true),
     supabase.from('teams').select('*', { count: 'exact', head: true }),
-    supabase.from('poules').select('*', { count: 'exact', head: true }),
+    supabase.from('poules').select('*', { count: 'exact', head: true }).eq('is_active', true),
+    supabase.from('competitions').select('*', { count: 'exact', head: true }).eq('is_active', true),
     supabase.from('matches').select('*', { count: 'exact', head: true }).eq('status', 'played'), // played but not confirmed
   ])
 
@@ -35,7 +38,7 @@ export default async function AdminDashboard() {
       </div>
 
       {/* KPI Cards */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
         <Card className="border-0 shadow-sm">
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">Totaal Spelers</CardTitle>
@@ -57,7 +60,18 @@ export default async function AdminDashboard() {
             <p className="text-xs text-muted-foreground mt-1 font-medium">Geregistreerde dubbelteams</p>
           </CardContent>
         </Card>
-        
+
+        <Card className="border-0 shadow-sm">
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground">Actieve Competities</CardTitle>
+            <Trophy className="h-4 w-4 text-primary" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-3xl font-black">{competitionCount ?? 0}</div>
+            <p className="text-xs text-muted-foreground mt-1 font-medium">Momenteel actieve competities</p>
+          </CardContent>
+        </Card>
+
         <Card className="border-0 shadow-sm">
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">Actieve Poules</CardTitle>

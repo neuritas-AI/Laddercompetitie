@@ -1,6 +1,7 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { CalendarClock, CheckCircle2, AlertCircle, Clock } from 'lucide-react'
 import { createClient } from '@/utils/supabase/server'
+import CompetitionFilter from '@/components/admin/competition-filter'
 
 const statusConfig: Record<string, { label: string; color: string }> = {
   scheduled: { label: 'Gepland', color: 'bg-blue-100 text-blue-800' },
@@ -9,10 +10,27 @@ const statusConfig: Record<string, { label: string; color: string }> = {
   disputed: { label: 'Betwist', color: 'bg-red-100 text-red-800' },
 }
 
-export default async function AdminMatchesPage() {
+export default async function AdminMatchesPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ competition?: string }>
+}) {
   const supabase = await createClient()
+  const { competition: competitionFilter } = await searchParams
 
-  const { data: matches } = await supabase
+  const [{ data: competitions }, poulesResult] = await Promise.all([
+    supabase.from('competitions').select('id, name').eq('is_active', true).order('name'),
+    competitionFilter
+      ? supabase.from('poules').select('id').eq('competition_id', competitionFilter)
+      : Promise.resolve({ data: null }),
+  ])
+
+  // Matches don't reference a competition directly (only via their poule), so
+  // resolve the poule ids for the selected competition first and scope the
+  // match query to those.
+  const pouleIdsForCompetition = poulesResult.data?.map((p) => p.id) ?? null
+
+  let matchesQuery = supabase
     .from('matches')
     .select(`
       id,
@@ -29,6 +47,12 @@ export default async function AdminMatchesPage() {
     .order('scheduled_date', { ascending: false })
     .limit(50)
 
+  if (pouleIdsForCompetition) {
+    matchesQuery = matchesQuery.in('poule_id', pouleIdsForCompetition.length > 0 ? pouleIdsForCompetition : ['00000000-0000-0000-0000-000000000000'])
+  }
+
+  const { data: matches } = await matchesQuery
+
   const formatDate = (d: string | null) => {
     if (!d) return '–'
     return new Date(d).toLocaleDateString('nl-BE', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })
@@ -40,6 +64,8 @@ export default async function AdminMatchesPage() {
         <h1 className="text-3xl font-bold tracking-tight text-foreground">Wedstrijdbeheer</h1>
         <p className="text-muted-foreground">Overzicht van alle geplande en gespeelde wedstrijden.</p>
       </div>
+
+      <CompetitionFilter competitions={competitions ?? []} selected={competitionFilter ?? ''} />
 
       <Card className="border-0 shadow-sm overflow-hidden">
         <CardHeader className="bg-muted/30 border-b border-border/50">
@@ -90,8 +116,12 @@ export default async function AdminMatchesPage() {
           ) : (
             <div className="flex flex-col items-center justify-center py-24 text-center">
               <CalendarClock className="w-14 h-14 text-muted-foreground/30 mb-4" />
-              <p className="font-bold text-muted-foreground text-lg">Nog geen wedstrijden aangemaakt</p>
-              <p className="text-sm text-muted-foreground/70 mt-1 font-medium">Wedstrijden worden aangemaakt vanuit poule-beheer.</p>
+              <p className="font-bold text-muted-foreground text-lg">
+                {competitionFilter ? 'Geen wedstrijden voor deze competitie' : 'Nog geen wedstrijden aangemaakt'}
+              </p>
+              <p className="text-sm text-muted-foreground/70 mt-1 font-medium">
+                {competitionFilter ? 'Kies een andere competitie hierboven.' : 'Wedstrijden worden aangemaakt vanuit poule-beheer.'}
+              </p>
             </div>
           )}
         </CardContent>

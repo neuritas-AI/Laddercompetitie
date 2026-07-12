@@ -4,7 +4,7 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import {
   Trophy, BarChart3, Users, LogOut, Menu, X,
-  Shield, GitCommitHorizontal, CalendarClock, ListOrdered, FileSearch
+  Shield, GitCommitHorizontal, CalendarClock, ListOrdered
 } from 'lucide-react'
 import { useState } from 'react'
 import { cn } from '@/lib/utils'
@@ -17,7 +17,6 @@ const adminNavItems = [
   { href: '/admin/players', label: 'Spelers & Betalingen', icon: Users },
   { href: '/admin/teams', label: 'Dubbelteams', icon: GitCommitHorizontal },
   { href: '/admin/matches', label: 'Wedstrijden', icon: CalendarClock },
-  { href: '/admin/logs', label: 'Audit Logboek', icon: FileSearch },
   { href: '/admin/administrators', label: 'Administrators', icon: Shield },
 ]
 

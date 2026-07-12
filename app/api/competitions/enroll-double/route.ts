@@ -19,7 +19,10 @@ export async function POST(request: Request) {
   if (competition.status !== 'open') return NextResponse.json({ error: 'Competitie niet open' }, { status: 400 })
 
   // Check partner exists and is active
-  const { data: partner } = await supabase.from('profiles').select('id, first_name, last_name').eq('id', partnerId).eq('is_active', true).maybeSingle()
+  const [{ data: partner }, { data: self }] = await Promise.all([
+    supabase.from('profiles').select('id, first_name, last_name').eq('id', partnerId).eq('is_active', true).maybeSingle(),
+    supabase.from('profiles').select('first_name, last_name').eq('id', user.id).maybeSingle(),
+  ])
   if (!partner) return NextResponse.json({ error: 'Gekozen partner niet gevonden of niet actief' }, { status: 404 })
 
   // Ensure neither player is already in a team registered for this competition
@@ -40,7 +43,9 @@ export async function POST(request: Request) {
   const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY!
   const adminDb = createSupabaseClient(supabaseUrl, serviceRoleKey)
 
-  const defaultName = teamName || `Team ${user.id.substring(0,4)} & ${partnerId.substring(0,4)}`
+  const formatPlayerName = (p: { first_name: string | null; last_name: string | null } | null, fallback: string) =>
+    [p?.first_name, p?.last_name].filter(Boolean).join(' ').trim() || fallback
+  const defaultName = teamName || `${formatPlayerName(self, 'Speler 1')} & ${formatPlayerName(partner, 'Speler 2')}`
   const { data: newTeam, error: teamError } = await adminDb.from('teams').insert({ competition_id: competitionId, name: defaultName }).select().single()
   if (teamError || !newTeam) return NextResponse.json({ error: teamError?.message || 'Kon team niet aanmaken' }, { status: 500 })
 

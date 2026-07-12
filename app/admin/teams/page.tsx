@@ -5,6 +5,11 @@ import { MoreVertical, Users, Plus } from 'lucide-react'
 import { createClient } from '@/utils/supabase/server'
 import AddTeamDialog from '@/components/admin/add-team-dialog'
 
+// Older self-enrollments could fall back to an auto-generated
+// "Team <id prefix> & <id prefix>" name. Never show that technical form —
+// display the players' names instead.
+const isTechnicalName = (name: string) => /^Team\s+[0-9a-f]{4}\s*&\s*[0-9a-f]{4}$/i.test(name.trim())
+
 export default async function AdminTeamsPage() {
   const supabase = await createClient()
 
@@ -55,6 +60,7 @@ export default async function AdminTeamsPage() {
                 const p2 = members[1]?.profiles
                 const p1Name = p1 ? `${p1.first_name ?? ''} ${p1.last_name ?? ''}`.trim() || 'Onbekend' : '?'
                 const p2Name = p2 ? `${p2.first_name ?? ''} ${p2.last_name ?? ''}`.trim() || 'Onbekend' : '?'
+                const displayName = isTechnicalName(team.name) ? `${p1Name} & ${p2Name}` : team.name
                 return (
                   <div key={team.id} className="flex flex-col sm:flex-row items-start sm:items-center justify-between p-4 sm:p-5 hover:bg-muted/10 transition-colors gap-4">
                     <div className="flex items-center gap-4">
@@ -67,7 +73,7 @@ export default async function AdminTeamsPage() {
                         </div>
                       </div>
                       <div>
-                        <p className="font-bold text-foreground text-lg">{team.name}</p>
+                        <p className="font-bold text-foreground text-lg">{displayName}</p>
                         <p className="text-xs text-muted-foreground font-medium">{p1Name} &amp; {p2Name}</p>
                       </div>
                     </div>
