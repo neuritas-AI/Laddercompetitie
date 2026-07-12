@@ -53,6 +53,30 @@ async function ensureAdmin() {
 
 // ─── COMPETITIONS ────────────────────────────────────────────────────────────
 
+const WINTER_TYPES = new Set(['single_winter', 'double_winter'])
+
+// Winter competitions can be split into multiple periods (period_count / period_start_N
+// / period_end_N form fields, N = 1..count). Summer competitions always get exactly
+// one period spanning the competition's own start/end date, so every competition
+// — winter or summer — has at least one period to key match generation and
+// standings off of.
+function parsePeriodsFromFormData(formData: FormData, type: string, fallbackStart: string, fallbackEnd: string) {
+  if (!WINTER_TYPES.has(type)) {
+    return [{ period_number: 1, start_date: fallbackStart, end_date: fallbackEnd }]
+  }
+
+  const count = parseInt(formData.get('period_count') as string, 10) || 3
+  const periods: { period_number: number; start_date: string; end_date: string }[] = []
+  for (let i = 1; i <= count; i++) {
+    periods.push({
+      period_number: i,
+      start_date: (formData.get(`period_start_${i}`) as string) || '',
+      end_date: (formData.get(`period_end_${i}`) as string) || '',
+    })
+  }
+  return periods
+}
+
 export async function createCompetition(formData: FormData): Promise<ActionResponse> {
   try {
     const { supabase } = await ensureAdmin()
@@ -70,19 +94,42 @@ export async function createCompetition(formData: FormData): Promise<ActionRespo
       return { success: false, error: 'Alle velden zijn verplicht.' }
     }
 
-    const { error } = await supabase.from('competitions').insert({
-      name,
-      type,
-      season_year,
-      start_date,
-      end_date,
-      status,
-      max_participants,
-      price,
-      is_active: status === 'open',
-    })
+    const periods = parsePeriodsFromFormData(formData, type, start_date, end_date)
+    if (periods.length === 0) {
+      return { success: false, error: 'Voeg minstens één periode toe.' }
+    }
+    if (periods.some((p) => !p.start_date || !p.end_date)) {
+      return { success: false, error: 'Elke periode heeft een start- en einddatum nodig.' }
+    }
 
-    if (error) throw error
+    const { data: competition, error } = await supabase
+      .from('competitions')
+      .insert({
+        name,
+        type,
+        season_year,
+        start_date,
+        end_date,
+        status,
+        max_participants,
+        price,
+        is_active: status === 'open',
+      })
+      .select('id')
+      .single()
+
+    if (error || !competition) throw error ?? new Error('Competitie kon niet worden aangemaakt.')
+
+    const { error: periodsError } = await supabase.from('competition_periods').insert(
+      periods.map((period, index) => ({
+        competition_id: competition.id,
+        period_number: period.period_number,
+        start_date: period.start_date,
+        end_date: period.end_date,
+        status: index === 0 ? 'active' : 'pending',
+      }))
+    )
+    if (periodsError) throw periodsError
 
     revalidatePath('/admin/competitions')
     return { success: true }
@@ -155,10 +202,13 @@ export async function deleteCompetition(id: string): Promise<ActionResponse> {
   try {
     const { supabase } = await ensureAdmin()
 
-    // 1. Check if poules or matches exist
-    const { data: poules } = await supabase.from('poules').select('id').eq('competition_id', id)
+    // 1. Check for poules that are still active. Soft-deleted poules
+    // (is_active: false) intentionally stay in the database to preserve
+    // historical results, so they must not block deletion — only poules the
+    // admin hasn't removed yet should.
+    const { data: poules } = await supabase.from('poules').select('id').eq('competition_id', id).eq('is_active', true)
     if (poules && poules.length > 0) {
-      return { success: false, error: 'Deze competitie bevat nog poules. Verwijder deze eerst of sluit de competitie af.' }
+      return { success: false, error: 'Deze competitie bevat nog actieve poules. Verwijder deze eerst of sluit de competitie af.' }
     }
 
     const { error } = await supabase.from('competitions').delete().eq('id', id)
@@ -282,7 +332,7 @@ export async function deletePoule(pouleId: string, destinationPouleId?: string):
   }
 }
 
-async function generateMatchesForPoule(supabase: any, pouleId: string): Promise<ActionResponse> {
+async function generateMatchesForPoule(supabase: any, pouleId: string, periodId?: string): Promise<ActionResponse> {
   try {
     const { data: players, error: playersError } = await supabase
       .from('poule_players')
@@ -295,10 +345,14 @@ async function generateMatchesForPoule(supabase: any, pouleId: string): Promise<
       return { success: true }
     }
 
-    const { data: existingMatches, error: existingError } = await supabase
-      .from('matches')
-      .select('player1_id, player2_id')
-      .eq('poule_id', pouleId)
+    // "Already played" is scoped to the given period when one is provided (e.g.
+    // when a new period starts and a poule gets the same two players again, they
+    // should get a fresh match rather than being skipped as already-paired from
+    // a previous period). Without a periodId, behavior is unchanged: scoped to
+    // the whole poule's history, as before.
+    let existingQuery = supabase.from('matches').select('player1_id, player2_id').eq('poule_id', pouleId)
+    existingQuery = periodId ? existingQuery.eq('period_id', periodId) : existingQuery
+    const { data: existingMatches, error: existingError } = await existingQuery
 
     if (existingError) throw existingError
 
@@ -316,6 +370,7 @@ async function generateMatchesForPoule(supabase: any, pouleId: string): Promise<
         if (existingPairSet.has(key)) continue
         matchRows.push({
           poule_id: pouleId,
+          period_id: periodId ?? null,
           player1_id: players[i].player_id,
           player2_id: players[j].player_id,
           deadline: deadlineDate,
@@ -341,7 +396,7 @@ async function generateMatchesForPoule(supabase: any, pouleId: string): Promise<
   }
 }
 
-async function recalculatePouleStandings(supabase: any, pouleId: string): Promise<ActionResponse> {
+async function recalculatePouleStandings(supabase: any, pouleId: string, periodId?: string): Promise<ActionResponse> {
   try {
     const { data: players, error: playersError } = await supabase
       .from('poule_players')
@@ -353,11 +408,15 @@ async function recalculatePouleStandings(supabase: any, pouleId: string): Promis
       return { success: true }
     }
 
-    const { data: matches, error: matchesError } = await supabase
+    // Scoped to the given period when provided, so a new period's standings
+    // aren't polluted by results from a previous period in the same poule.
+    let matchesQuery = supabase
       .from('matches')
       .select('player1_id, player2_id, winner_id')
       .eq('poule_id', pouleId)
       .eq('status', 'confirmed')
+    matchesQuery = periodId ? matchesQuery.eq('period_id', periodId) : matchesQuery
+    const { data: matches, error: matchesError } = await matchesQuery
 
     if (matchesError) throw matchesError
 
@@ -415,6 +474,165 @@ async function recalculatePouleStandings(supabase: any, pouleId: string): Promis
   } catch (error: any) {
     console.error('recalculatePouleStandings error:', error)
     return { success: false, error: error?.message || 'Kon de rangschikking niet bijwerken.' }
+  }
+}
+
+// ─── COMPETITION PERIODS ─────────────────────────────────────────────────────
+
+type StandingRow = { id: string; memberId: string; position: number }
+
+// Promotion/demotion for one poule's players (or teams): top 2 move to the
+// poule one level higher, bottom 2 move to the poule one level lower, everyone
+// else stays. At the top level there's nothing to promote into, so the top 2
+// simply stay; same for the bottom level and demotion. In small poules (<4
+// members) a member that would otherwise be in both groups is only promoted,
+// never both — promotion takes priority so nobody is double-moved.
+function planPromotionDemotion(rows: StandingRow[], hasHigherPoule: boolean, hasLowerPoule: boolean) {
+  const sorted = [...rows].sort((a, b) => a.position - b.position)
+  const promoted = hasHigherPoule ? sorted.slice(0, 2) : []
+  const promotedIds = new Set(promoted.map((r) => r.id))
+  const demotionCandidates = sorted.filter((r) => !promotedIds.has(r.id))
+  const demoted = hasLowerPoule ? demotionCandidates.slice(-2) : []
+  const demotedIds = new Set(demoted.map((r) => r.id))
+  const stayers = sorted.filter((r) => !promotedIds.has(r.id) && !demotedIds.has(r.id))
+  return { promoted, demoted, stayers }
+}
+
+export async function advancePeriod(competitionId: string): Promise<ActionResponse> {
+  try {
+    const { supabase } = await ensureAdmin()
+
+    const { data: periods, error: periodsError } = await supabase
+      .from('competition_periods')
+      .select('id, period_number, status')
+      .eq('competition_id', competitionId)
+      .order('period_number', { ascending: true })
+    if (periodsError) throw periodsError
+    if (!periods || periods.length === 0) {
+      return { success: false, error: 'Deze competitie heeft geen periodes ingesteld.' }
+    }
+
+    const currentIndex = periods.findIndex((p: any) => p.status === 'active')
+    if (currentIndex === -1) {
+      return { success: false, error: 'Geen actieve periode gevonden voor deze competitie.' }
+    }
+    const currentPeriod = periods[currentIndex]
+    const nextPeriod = periods[currentIndex + 1]
+    if (!nextPeriod) {
+      return { success: false, error: 'Dit was de laatste periode van deze competitie.' }
+    }
+
+    const { data: poules, error: poulesError } = await supabase
+      .from('poules')
+      .select('id, level')
+      .eq('competition_id', competitionId)
+      .eq('is_active', true)
+      .order('level', { ascending: true })
+    if (poulesError) throw poulesError
+    if (!poules || poules.length === 0) {
+      return { success: false, error: 'Geen actieve poules gevonden voor deze competitie.' }
+    }
+
+    const levels = [...new Set(poules.map((p: any) => p.level))].sort((a: number, b: number) => a - b)
+    const pouleIdByLevel = new Map(poules.map((p: any) => [p.level, p.id]))
+
+    // Phase 1: snapshot every poule's current standings before making any
+    // changes, so one poule's promotion/demotion can't leak into another
+    // poule's "who's currently in this poule" read further down the loop.
+    const snapshots = await Promise.all(
+      poules.map(async (poule: any) => {
+        const [{ data: players, error: playersError }, { data: teams, error: teamsError }] = await Promise.all([
+          supabase.from('poule_players').select('id, player_id, position').eq('poule_id', poule.id),
+          supabase.from('team_poules').select('id, team_id, position').eq('poule_id', poule.id),
+        ])
+        if (playersError) throw playersError
+        if (teamsError) throw teamsError
+        return { poule, players: players ?? [], teams: teams ?? [] }
+      })
+    )
+
+    // Phase 2: compute the promotion/demotion plan for every poule from the snapshots.
+    const deletes: { table: 'poule_players' | 'team_poules'; id: string }[] = []
+    const inserts: { table: 'poule_players' | 'team_poules'; row: Record<string, any> }[] = []
+    const statResets: { table: 'poule_players' | 'team_poules'; id: string }[] = []
+
+    for (const { poule, players, teams } of snapshots) {
+      const levelIdx = levels.indexOf(poule.level)
+      const higherPouleId = levelIdx > 0 ? pouleIdByLevel.get(levels[levelIdx - 1]) : null
+      const lowerPouleId = levelIdx < levels.length - 1 ? pouleIdByLevel.get(levels[levelIdx + 1]) : null
+
+      if (players.length > 0) {
+        const rows: StandingRow[] = players.map((p: any) => ({ id: p.id, memberId: p.player_id, position: p.position }))
+        const { promoted, demoted, stayers } = planPromotionDemotion(rows, Boolean(higherPouleId), Boolean(lowerPouleId))
+        for (const row of promoted) {
+          deletes.push({ table: 'poule_players', id: row.id })
+          inserts.push({ table: 'poule_players', row: { poule_id: higherPouleId, player_id: row.memberId, position: 1 } })
+        }
+        for (const row of demoted) {
+          deletes.push({ table: 'poule_players', id: row.id })
+          inserts.push({ table: 'poule_players', row: { poule_id: lowerPouleId, player_id: row.memberId, position: 1 } })
+        }
+        for (const row of stayers) {
+          statResets.push({ table: 'poule_players', id: row.id })
+        }
+      }
+
+      if (teams.length > 0) {
+        const rows: StandingRow[] = teams.map((t: any) => ({ id: t.id, memberId: t.team_id, position: t.position }))
+        const { promoted, demoted, stayers } = planPromotionDemotion(rows, Boolean(higherPouleId), Boolean(lowerPouleId))
+        for (const row of promoted) {
+          deletes.push({ table: 'team_poules', id: row.id })
+          inserts.push({ table: 'team_poules', row: { poule_id: higherPouleId, team_id: row.memberId, position: 1 } })
+        }
+        for (const row of demoted) {
+          deletes.push({ table: 'team_poules', id: row.id })
+          inserts.push({ table: 'team_poules', row: { poule_id: lowerPouleId, team_id: row.memberId, position: 1 } })
+        }
+        for (const row of stayers) {
+          statResets.push({ table: 'team_poules', id: row.id })
+        }
+      }
+    }
+
+    // Phase 3: apply the plan — deletes first, then inserts into the new poule,
+    // then reset stats for everyone so the new period starts at 0.
+    for (const del of deletes) {
+      const { error } = await supabase.from(del.table).delete().eq('id', del.id)
+      if (error) throw error
+    }
+    for (const ins of inserts) {
+      const { error } = await supabase.from(ins.table).insert(ins.row)
+      if (error) throw error
+    }
+    for (const reset of statResets) {
+      const { error } = await supabase
+        .from(reset.table)
+        .update({ matches_played: 0, matches_won: 0, matches_lost: 0 })
+        .eq('id', reset.id)
+      if (error) throw error
+    }
+
+    // Phase 4: generate the new period's matches and recompute standings per poule.
+    for (const poule of poules) {
+      const matchResult = await generateMatchesForPoule(supabase, poule.id, nextPeriod.id)
+      if (!matchResult.success) throw new Error(matchResult.error || 'Kon geen wedstrijden aanmaken voor de nieuwe periode.')
+      const standingsResult = await recalculatePouleStandings(supabase, poule.id, nextPeriod.id)
+      if (!standingsResult.success) throw new Error(standingsResult.error || 'Kon de poulestand niet bijwerken.')
+    }
+
+    const [{ error: closeError }, { error: openError }] = await Promise.all([
+      supabase.from('competition_periods').update({ status: 'completed' }).eq('id', currentPeriod.id),
+      supabase.from('competition_periods').update({ status: 'active' }).eq('id', nextPeriod.id),
+    ])
+    if (closeError) throw closeError
+    if (openError) throw openError
+
+    revalidatePath('/admin/competitions')
+    revalidatePath('/admin/poules')
+    return { success: true }
+  } catch (error: any) {
+    console.error('advancePeriod error:', error)
+    return { success: false, error: error?.message || 'Onbekende fout' }
   }
 }
 

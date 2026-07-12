@@ -6,6 +6,7 @@ import AddCompetitionDialog from '@/components/admin/add-competition-dialog'
 import UpdateCompetitionStatusButton from './update-status-button'
 import EditCompetitionDialog from '@/components/admin/edit-competition-dialog'
 import DeleteCompetitionButton from '@/components/admin/delete-competition-button'
+import AdvancePeriodButton from '@/components/admin/advance-period-button'
 
 const typeLabels: Record<string, string> = {
   single_winter: 'Enkel Winter',
@@ -38,7 +39,8 @@ export default async function AdminCompetitionsPage() {
       status,
       max_participants,
       price,
-      poules(id)
+      poules(id, is_active),
+      competition_periods(id, period_number, start_date, end_date, status)
     `)
     .order('season_year', { ascending: false })
 
@@ -63,9 +65,19 @@ export default async function AdminCompetitionsPage() {
           {competitions && competitions.length > 0 ? (
             <div className="divide-y divide-border/40">
               {competitions.map((comp) => {
-                const pouleCount = (comp.poules as any[])?.length ?? 0
+                // Soft-deleted poules (is_active: false) stay in the database for
+                // history but should never count toward "this competition still
+                // has poules" — otherwise a competition can never be deleted once
+                // it has ever had a poule removed.
+                const pouleCount = ((comp.poules as any[]) ?? []).filter((p) => p.is_active).length
                 const label = typeLabels[comp.type] ?? comp.type
                 const statusInfo = statusLabels[comp.status || 'draft'] || statusLabels['draft']
+
+                const periods = ((comp.competition_periods as any[]) ?? []).sort((a, b) => a.period_number - b.period_number)
+                const currentPeriod = periods.find((p) => p.status === 'active') ?? null
+                const nextPeriod = currentPeriod
+                  ? periods.find((p) => p.period_number === currentPeriod.period_number + 1) ?? null
+                  : null
                 return (
                   <div key={comp.id} className="flex flex-col lg:flex-row items-start lg:items-center justify-between p-5 hover:bg-muted/10 transition-colors gap-4">
                     <div className="flex items-center gap-4">
@@ -100,12 +112,19 @@ export default async function AdminCompetitionsPage() {
                         <span className="text-sm font-black text-foreground">{pouleCount}</span>
                       </div>
                       <div className="flex flex-col gap-1 min-w-[100px]">
-                        <span className="text-[10px] uppercase tracking-wider text-muted-foreground font-bold">Periode</span>
+                        <span className="text-[10px] uppercase tracking-wider text-muted-foreground font-bold">
+                          {periods.length > 1 ? `Periode ${currentPeriod?.period_number ?? '?'}/${periods.length}` : 'Periode'}
+                        </span>
                         <span className="text-xs font-semibold text-foreground">
-                          {new Date(comp.start_date).toLocaleDateString('nl-BE')} – {new Date(comp.end_date).toLocaleDateString('nl-BE')}
+                          {currentPeriod
+                            ? `${new Date(currentPeriod.start_date).toLocaleDateString('nl-BE')} – ${new Date(currentPeriod.end_date).toLocaleDateString('nl-BE')}`
+                            : `${new Date(comp.start_date).toLocaleDateString('nl-BE')} – ${new Date(comp.end_date).toLocaleDateString('nl-BE')}`}
                         </span>
                       </div>
                       <div className="flex items-center gap-2 ml-auto sm:ml-0">
+                        {nextPeriod && (
+                          <AdvancePeriodButton competitionId={comp.id} nextPeriodNumber={nextPeriod.period_number} />
+                        )}
                         <UpdateCompetitionStatusButton competitionId={comp.id} currentStatus={comp.status || 'draft'} />
                         <EditCompetitionDialog competition={comp} />
                         <DeleteCompetitionButton id={comp.id} pouleCount={pouleCount} />

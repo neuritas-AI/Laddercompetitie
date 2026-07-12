@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useTransition } from 'react'
-import { Plus, Loader2 } from 'lucide-react'
+import { Plus, Loader2, Snowflake } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -9,10 +9,17 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { createCompetition } from '@/app/actions/admin'
 
+const WINTER_TYPES = new Set(['single_winter', 'double_winter'])
+const DEFAULT_PERIOD_COUNT = 3
+
 export default function AddCompetitionDialog() {
   const [open, setOpen] = useState(false)
   const [isPending, startTransition] = useTransition()
   const [error, setError] = useState<string | null>(null)
+  const [type, setType] = useState('single_summer')
+  const [periodCount, setPeriodCount] = useState(DEFAULT_PERIOD_COUNT)
+
+  const isWinter = WINTER_TYPES.has(type)
 
   async function onSubmit(formData: FormData) {
     setError(null)
@@ -44,7 +51,7 @@ export default function AddCompetitionDialog() {
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="type">Type</Label>
-              <Select name="type" required defaultValue="single_summer">
+              <Select name="type" required value={type} onValueChange={(value: unknown) => setType(String(value ?? 'single_summer'))}>
                 <SelectTrigger>
                   <SelectValue placeholder="Kies type" />
                 </SelectTrigger>
@@ -72,6 +79,44 @@ export default function AddCompetitionDialog() {
               <Input id="end_date" name="end_date" type="date" required />
             </div>
           </div>
+
+          {isWinter && (
+            <div className="space-y-3 rounded-xl border border-input p-4 bg-muted/20">
+              <div className="flex items-center gap-2 text-sm font-bold text-foreground">
+                <Snowflake className="w-4 h-4 text-primary" />
+                Periodes
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Na elke periode stijgen de bovenste 2 en dalen de onderste 2 spelers/teams per poule naar de volgende periode.
+              </p>
+              <div className="space-y-2">
+                <Label htmlFor="period_count">Aantal periodes</Label>
+                <Input
+                  id="period_count"
+                  name="period_count"
+                  type="number"
+                  min="1"
+                  max="12"
+                  value={periodCount}
+                  onChange={(e) => setPeriodCount(Math.max(1, Math.min(12, parseInt(e.target.value, 10) || 1)))}
+                />
+              </div>
+              <div className="space-y-3">
+                {Array.from({ length: periodCount }, (_, i) => i + 1).map((periodNumber) => (
+                  <div key={periodNumber} className="grid grid-cols-2 gap-3">
+                    <div className="space-y-1">
+                      <Label htmlFor={`period_start_${periodNumber}`} className="text-xs">Periode {periodNumber} start</Label>
+                      <Input id={`period_start_${periodNumber}`} name={`period_start_${periodNumber}`} type="date" required className="h-9" />
+                    </div>
+                    <div className="space-y-1">
+                      <Label htmlFor={`period_end_${periodNumber}`} className="text-xs">Periode {periodNumber} einde</Label>
+                      <Input id={`period_end_${periodNumber}`} name={`period_end_${periodNumber}`} type="date" required className="h-9" />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
 
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">

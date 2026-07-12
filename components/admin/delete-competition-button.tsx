@@ -1,16 +1,18 @@
 'use client'
 
 import { useTransition } from 'react'
+import { useRouter } from 'next/navigation'
 import { Trash2, Loader2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { deleteCompetition } from '@/app/actions/admin'
 
 export default function DeleteCompetitionButton({ id, pouleCount }: { id: string, pouleCount: number }) {
   const [isPending, startTransition] = useTransition()
+  const router = useRouter()
 
   const handleDelete = () => {
     if (pouleCount > 0) {
-      alert('Deze competitie bevat nog poules. Je kan deze niet verwijderen tenzij je eerst de poules verwijdert of de competitie afsluit.')
+      alert('Deze competitie bevat nog actieve poules. Je kan deze niet verwijderen tenzij je eerst de poules verwijdert of de competitie afsluit.')
       return
     }
 
@@ -19,6 +21,8 @@ export default function DeleteCompetitionButton({ id, pouleCount }: { id: string
         const res = await deleteCompetition(id)
         if (!res.success) {
           alert(res.error)
+        } else {
+          router.refresh()
         }
       })
     }
