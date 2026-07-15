@@ -75,9 +75,7 @@ export default function AdminLayoutClient({ children, adminName, adminEmail }: P
               Uitloggen
             </button>
           </form>
-          <p className="text-center pt-1">
-            <span className="text-[10px] font-semibold bg-gradient-to-r from-[#7C3AED] via-[#2563EB] to-[#22D3EE] bg-clip-text text-transparent">Powered by Neuritas-AI</span>
-          </p>
+          <p className="text-center text-[10px] text-white/50 font-medium pt-1">Powered by Neuritas-AI</p>
         </div>
       </aside>
 
@@ -109,9 +107,7 @@ export default function AdminLayoutClient({ children, adminName, adminEmail }: P
                 <LogOut className="h-4 w-4" />Uitloggen
               </button>
             </form>
-            <p className="text-center pt-2">
-              <span className="text-[10px] font-semibold bg-gradient-to-r from-[#7C3AED] via-[#2563EB] to-[#22D3EE] bg-clip-text text-transparent">Powered by Neuritas-AI</span>
-            </p>
+            <p className="text-center text-[10px] text-white/50 font-medium pt-2">Powered by Neuritas-AI</p>
           </div>
         )}
 
