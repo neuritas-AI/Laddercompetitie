@@ -90,6 +90,7 @@ export default function PlayerLayoutClient({
               </button>
             </form>
           </div>
+          <p className="text-center text-[10px] text-white/30 font-medium pt-3">Powered by Neuritas-AI</p>
         </div>
       </aside>
 
@@ -149,6 +150,7 @@ export default function PlayerLayoutClient({
             )
           })}
         </div>
+        <p className="text-center text-[9px] text-muted-foreground/60 font-medium pb-1">Powered by Neuritas-AI</p>
       </div>
     </div>
   )
