@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -11,7 +11,9 @@ import { createClient } from '@/utils/supabase/client'
 
 export default function ResetPasswordClient() {
   const router = useRouter()
-  const [checking, setChecking] = useState(true)
+  const searchParams = useSearchParams()
+  const linkInvalid = searchParams.get('error') === 'invalid_or_expired'
+  const [checking, setChecking] = useState(!linkInvalid)
   const [hasSession, setHasSession] = useState(false)
   const [newPassword, setNewPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
@@ -20,32 +22,25 @@ export default function ResetPasswordClient() {
   const [success, setSuccess] = useState(false)
 
   useEffect(() => {
+    // /auth/confirm already verified the recovery link server-side and set
+    // the session cookie before redirecting here, or redirected with
+    // ?error=invalid_or_expired if verification failed. Nothing left to do
+    // in that failure case.
+    if (linkInvalid) return
+
     let mounted = true
     const supabase = createClient()
 
-    // Clicking the reset link lands here with a recovery session already
-    // established by the Supabase client (it detects the token in the URL on
-    // load). Check for it directly, and also listen for the PASSWORD_RECOVERY
-    // event in case it fires just after this effect mounts.
     supabase.auth.getSession().then(({ data }) => {
       if (!mounted) return
       if (data.session) setHasSession(true)
       setChecking(false)
     })
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-      if (!mounted) return
-      if (event === 'PASSWORD_RECOVERY' || session) {
-        setHasSession(true)
-        setChecking(false)
-      }
-    })
-
     return () => {
       mounted = false
-      subscription.unsubscribe()
     }
-  }, [])
+  }, [linkInvalid])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()

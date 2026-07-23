@@ -5,13 +5,6 @@ import { requireAdminClient } from '@/utils/supabase/admin'
 import { REGISTRATION_STATUS_LABELS } from '@/lib/competitions'
 import { getDisplayName, getInitials } from '@/lib/profile'
 
-const typeLabels: Record<string, string> = {
-  single_winter: 'Enkel Winter',
-  single_summer: 'Enkel Zomer',
-  double_winter: 'Dubbel Winter',
-  double_summer: 'Dubbel Zomer',
-}
-
 export default async function AdminPlayerDetailPage({
   params,
 }: {
@@ -55,9 +48,9 @@ export default async function AdminPlayerDetailPage({
   const [{ data: registrations }, { data: teamMemberships }] = await Promise.all([
     supabase
       .from('competition_registrations')
-      .select('status, created_at, competitions(id, name, type, season_year)')
+      .select('status, registered_at, amount, competitions(id, name, type, season_year)')
       .eq('player_id', playerId)
-      .order('created_at', { ascending: false }),
+      .order('registered_at', { ascending: false }),
     supabase
       .from('team_members')
       .select('team_id, teams(id, name)')
@@ -70,7 +63,7 @@ export default async function AdminPlayerDetailPage({
     teamIds.length
       ? supabase
           .from('competition_team_registrations')
-          .select('status, created_at, team_id, competitions(id, name, type, season_year)')
+          .select('status, created_at, amount, team_id, competitions(id, name, type, season_year)')
           .in('team_id', teamIds)
           .order('created_at', { ascending: false })
       : Promise.resolve({ data: [] as any[] }),
@@ -96,7 +89,8 @@ export default async function AdminPlayerDetailPage({
       key: `single-${r.competitions.id}`,
       competition: r.competitions,
       status: r.status,
-      created_at: r.created_at,
+      created_at: r.registered_at,
+      amount: r.amount,
       partner: null as string | null,
     }))
 
@@ -107,6 +101,7 @@ export default async function AdminPlayerDetailPage({
       competition: r.competitions,
       status: r.status,
       created_at: r.created_at,
+      amount: r.amount,
       partner: partnerByTeamId.get(r.team_id) ?? null,
     }))
 
@@ -168,12 +163,19 @@ export default async function AdminPlayerDetailPage({
                   : entry.status === 'cancelled'
                   ? 'bg-red-100 text-red-700'
                   : 'bg-yellow-100 text-yellow-800'
+                const isDouble = entry.competition.type.startsWith('double')
+                const isWinter = entry.competition.type.endsWith('winter')
+                const kindLabel = isDouble ? 'Dubbel' : 'Enkel'
+                const seasonLabel = isWinter ? 'Winter' : 'Zomer'
+                const amountLabel = entry.amount != null
+                  ? new Intl.NumberFormat('nl-BE', { style: 'currency', currency: 'EUR' }).format(Number(entry.amount))
+                  : '—'
                 return (
                   <div key={entry.key} className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 sm:p-5">
                     <div>
                       <p className="font-bold text-foreground text-sm">{entry.competition.name}</p>
                       <p className="text-xs text-muted-foreground font-medium mt-0.5">
-                        {typeLabels[entry.competition.type] ?? entry.competition.type} · {entry.competition.season_year}
+                        {kindLabel} · {seasonLabel} {entry.competition.season_year}
                         {entry.partner && (
                           <span className="ml-2 inline-flex items-center gap-1">
                             <Users className="w-3 h-3" /> Partner: {entry.partner}
@@ -183,7 +185,10 @@ export default async function AdminPlayerDetailPage({
                     </div>
                     <div className="flex items-center gap-3">
                       <span className="text-xs text-muted-foreground">
-                        {new Date(entry.created_at).toLocaleDateString('nl-BE')}
+                        Ingeschreven {new Date(entry.created_at).toLocaleDateString('nl-BE')}
+                      </span>
+                      <span className="text-xs font-bold text-foreground">
+                        {amountLabel}
                       </span>
                       <span className={`text-[10px] font-bold uppercase tracking-wider px-2.5 py-1 rounded-full ${statusColor}`}>
                         {statusLabel}

@@ -84,8 +84,8 @@ export async function createCompetition(formData: FormData): Promise<ActionRespo
     const name = formData.get('name') as string
     const type = formData.get('type') as string
     const season_year = parseInt(formData.get('season_year') as string, 10)
-    const start_date = formData.get('start_date') as string
-    const end_date = formData.get('end_date') as string
+    const formStartDate = formData.get('start_date') as string
+    const formEndDate = formData.get('end_date') as string
     const status = (formData.get('status') as string) || 'draft'
     // No limit by default: only cap participants when the admin explicitly
     // fills in a number (an empty/missing field means "Geen maximum").
@@ -93,17 +93,26 @@ export async function createCompetition(formData: FormData): Promise<ActionRespo
     const max_participants = isNaN(maxParticipantsRaw) ? null : maxParticipantsRaw
     const price = parseFloat(formData.get('price') as string) || 0
 
-    if (!name || !type || !season_year || !start_date || !end_date) {
+    // Winter competitions are entirely defined by their per-period dates, so no
+    // separate overall start/end date is needed from the admin — it's derived
+    // below from the periods themselves. Non-winter competitions have a single
+    // period spanning the whole competition, so the overall dates are required.
+    const isWinter = WINTER_TYPES.has(type)
+
+    if (!name || !type || !season_year || (!isWinter && (!formStartDate || !formEndDate))) {
       return { success: false, error: 'Alle velden zijn verplicht.' }
     }
 
-    const periods = parsePeriodsFromFormData(formData, type, start_date, end_date)
+    const periods = parsePeriodsFromFormData(formData, type, formStartDate, formEndDate)
     if (periods.length === 0) {
       return { success: false, error: 'Voeg minstens één periode toe.' }
     }
     if (periods.some((p) => !p.start_date || !p.end_date)) {
       return { success: false, error: 'Elke periode heeft een start- en einddatum nodig.' }
     }
+
+    const start_date = isWinter ? periods.reduce((min, p) => (p.start_date < min ? p.start_date : min), periods[0].start_date) : formStartDate
+    const end_date = isWinter ? periods.reduce((max, p) => (p.end_date > max ? p.end_date : max), periods[0].end_date) : formEndDate
 
     const { data: competition, error } = await supabase
       .from('competitions')

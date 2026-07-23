@@ -70,16 +70,18 @@ export default function AddCompetitionDialog() {
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="start_date">Startdatum</Label>
-              <Input id="start_date" name="start_date" type="date" required />
+          {!isWinter && (
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="start_date">Startdatum</Label>
+                <Input id="start_date" name="start_date" type="date" required />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="end_date">Einddatum</Label>
+                <Input id="end_date" name="end_date" type="date" required />
+              </div>
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="end_date">Einddatum</Label>
-              <Input id="end_date" name="end_date" type="date" required />
-            </div>
-          </div>
+          )}
 
           {isWinter && (
             <div className="space-y-3 rounded-xl border border-input p-4 bg-muted/20">
@@ -88,6 +90,7 @@ export default function AddCompetitionDialog() {
                 Periodes
               </div>
               <p className="text-xs text-muted-foreground">
+                Geen algemene start-/einddatum nodig: de competitie loopt van de start van periode 1 tot het einde van de laatste periode.
                 Na elke periode stijgen de bovenste 2 en dalen de onderste 2 spelers/teams per poule naar de volgende periode.
               </p>
               <div className="space-y-2">

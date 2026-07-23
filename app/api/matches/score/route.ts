@@ -18,7 +18,7 @@ export async function POST(request: NextRequest) {
 
   // Validate match belongs to user and is ready for score entry. These two reads
   // don't depend on each other, so fetch them concurrently instead of in sequence.
-  const [{ data: match, error: matchError }, { data: existingPending }] = await Promise.all([
+  const [{ data: match, error: matchError }, { data: recentScores }] = await Promise.all([
     supabase
       .from('matches')
       .select('id, player1_id, player2_id, status')
@@ -26,22 +26,34 @@ export async function POST(request: NextRequest) {
       .single(),
     supabase
       .from('match_scores')
-      .select('id')
+      .select('id, status, submitted_by, created_at')
       .eq('match_id', matchId)
-      .eq('status', 'pending')
-      .limit(1)
-      .maybeSingle(),
+      .order('created_at', { ascending: false })
+      .limit(1),
   ])
 
   if (matchError || !match) return NextResponse.json({ error: 'Wedstrijd niet gevonden' }, { status: 404 })
   if (match.player1_id !== user.id && match.player2_id !== user.id) {
     return NextResponse.json({ error: 'Geen toegang' }, { status: 403 })
   }
-  if (match.status !== 'scheduled') {
+
+  const latestScore = recentScores?.[0] ?? null
+  const isRescoreAfterDispute = match.status === 'disputed'
+
+  if (match.status !== 'scheduled' && !isRescoreAfterDispute) {
     return NextResponse.json({ error: 'Score kan alleen ingevoerd worden voor een geplande wedstrijd.' }, { status: 400 })
   }
 
-  if (existingPending) {
+  if (isRescoreAfterDispute) {
+    // Only the player who disputed the previous score may submit the
+    // correction — the original submitter can't just resubmit unchanged.
+    if (!latestScore || latestScore.status !== 'disputed') {
+      return NextResponse.json({ error: 'Deze wedstrijd staat niet open voor een nieuwe score.' }, { status: 400 })
+    }
+    if (latestScore.submitted_by === user.id) {
+      return NextResponse.json({ error: 'Wacht tot je tegenstander de nieuwe score ingeeft.' }, { status: 403 })
+    }
+  } else if (latestScore && latestScore.status === 'pending') {
     return NextResponse.json({ error: 'Er staat al een score klaar voor deze wedstrijd. Laat je tegenstander deze bevestigen of betwisten.' }, { status: 409 })
   }
 
@@ -85,8 +97,10 @@ export async function POST(request: NextRequest) {
       .eq('id', matchId),
     sendNotification(
       opponentId,
-      'Score ingegeven',
-      'Je tegenstander heeft een score ingegeven. Controleer en bevestig de score.',
+      isRescoreAfterDispute ? 'Score betwist' : 'Score ingegeven',
+      isRescoreAfterDispute
+        ? 'Score betwist – controleer en bevestig de nieuwe score.'
+        : 'Je tegenstander heeft een score ingegeven. Controleer en bevestig de score.',
       'score_entered',
       `/matches/${matchId}/confirm`,
       matchId

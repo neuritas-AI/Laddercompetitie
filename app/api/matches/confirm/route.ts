@@ -212,7 +212,7 @@ export async function POST(request: NextRequest) {
     await sendNotification(
       score.submitted_by,
       'Score betwist',
-      'Je tegenstander heeft de ingegeven score betwist. Neem contact op om de wedstrijd te herplannen of opnieuw te spelen.',
+      'Je tegenstander heeft de ingegeven score betwist en zal een nieuwe score voorstellen.',
       'score_entered',
       `/matches/${match.id}`,
       match.id

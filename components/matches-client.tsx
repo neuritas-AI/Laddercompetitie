@@ -24,10 +24,18 @@ interface Match {
   player1: { first_name: string | null; last_name: string | null; avatar_url: string | null } | null
   player2: { first_name: string | null; last_name: string | null; avatar_url: string | null } | null
   poule: { name: string } | null
+  period?: { period_number: number } | null
   // Only present on matches with a pending score (the "Score bevestigen" tab).
   // True when the current user is the one who still needs to confirm/dispute it;
   // false when the current user is the one who submitted it and is waiting.
   canConfirm?: boolean
+  // True for a disputed match that needs a corrected score submitted before it
+  // can move forward again.
+  needsRescore?: boolean
+  // Only meaningful when needsRescore is true. True when the current user is
+  // the one who disputed the last score and must submit the correction; false
+  // when they're waiting on the opponent to do so.
+  canRescore?: boolean
 }
 
 interface Props {
@@ -149,11 +157,14 @@ export default function MatchesClient({ upcoming, past, userId, pouleName, hasCo
     const isPendingConfirmation = match.status === 'played'
     const isConfirmed = match.status === 'confirmed'
     const isDisputed = match.status === 'disputed'
-    const isPast = isConfirmed || isPendingConfirmation || isDisputed
+    const isPast = isConfirmed || isPendingConfirmation
     const poule = (match.poule as any)?.name ?? pouleName ?? ''
+    const periodNumber = (match.period as any)?.period_number ?? null
 
     const waitingForMe = isPendingConfirmation && match.canConfirm !== false
     const waitingForOpponent = isPendingConfirmation && match.canConfirm === false
+    const canRescore = isDisputed && match.canRescore === true
+    const waitingForRescore = isDisputed && match.canRescore !== true
 
     const statusBadge = isConfirmed
       ? { label: 'Bevestigd', className: 'text-green-600 bg-green-100' }
@@ -161,8 +172,6 @@ export default function MatchesClient({ upcoming, past, userId, pouleName, hasCo
       ? { label: 'Wacht op tegenstander', className: 'text-orange-700 bg-orange-100' }
       : isPendingConfirmation
       ? { label: 'Wacht op bevestiging', className: 'text-orange-700 bg-orange-100' }
-      : isDisputed
-      ? { label: 'Betwist', className: 'text-red-600 bg-red-100' }
       : null
 
     return (
@@ -179,7 +188,9 @@ export default function MatchesClient({ upcoming, past, userId, pouleName, hasCo
             <div>
               <p className="font-black text-lg text-foreground group-hover:text-primary transition-colors">{oppName}</p>
               <div className="flex flex-col gap-0.5 mt-0.5">
-                <p className="text-xs text-muted-foreground font-bold tracking-wider uppercase">{poule}</p>
+                <p className="text-xs text-muted-foreground font-bold tracking-wider uppercase">
+                  {poule}{periodNumber ? ` · Periode ${periodNumber}` : ''}
+                </p>
                 {sharePhone ? (
                   <p className="text-xs text-primary font-medium">{phone || 'Geen nummer'}</p>
                 ) : (
@@ -189,7 +200,7 @@ export default function MatchesClient({ upcoming, past, userId, pouleName, hasCo
             </div>
           </Link>
 
-          {!isPast && (
+          {!isPast && !isDisputed && (
             <div className="flex gap-2">
               {isScheduled ? (
                 <div className="flex items-center gap-2 text-xs font-bold text-blue-600 bg-blue-100 px-3 py-1.5 rounded-full">
@@ -202,6 +213,7 @@ export default function MatchesClient({ upcoming, past, userId, pouleName, hasCo
               )}
             </div>
           )}
+
 
           {isPast && (
             <div className="flex flex-col items-center">
@@ -219,19 +231,19 @@ export default function MatchesClient({ upcoming, past, userId, pouleName, hasCo
           )}
 
           <div className="flex items-center gap-3 mt-2 sm:mt-0">
-            {!isPast && !isScheduled && (
+            {!isPast && !isDisputed && !isScheduled && (
               <Button onClick={() => { setScheduleMatchId(match.id); setShowSchedule(true) }} className="bg-primary hover:bg-primary/90 text-white font-bold rounded-xl shadow-sm">
                 Plan datum
               </Button>
             )}
-            {!isPast && (
+            {!isPast && !isDisputed && (
               <Button variant="outline" onClick={() => { setScoreMatchId(match.id); setScoreOpponent(oppName); setScoreIsPlayer1(isPlayer1); setShowScore(true) }} className="border-2 font-bold rounded-xl hover:bg-muted/50">
                 <PenSquare className="w-4 h-4 mr-2" /> Score
               </Button>
             )}
             {waitingForMe && (
               <a
-                href={`/matches/redirect/${match.id}/confirm`}
+                href={`/matches/${match.id}/confirm`}
                 className="inline-flex items-center justify-center rounded-xl border border-primary px-4 py-3 text-sm font-bold text-primary transition hover:bg-primary/10"
               >
                 Score bevestigen
@@ -247,9 +259,14 @@ export default function MatchesClient({ upcoming, past, userId, pouleName, hasCo
                 <CheckCircle2 className="h-4 w-4" /> Bevestigd
               </span>
             )}
-            {isDisputed && (
+            {isDisputed && canRescore && (
+              <Button onClick={() => { setScoreMatchId(match.id); setScoreOpponent(oppName); setScoreIsPlayer1(isPlayer1); setShowScore(true) }} className="bg-primary hover:bg-primary/90 text-white font-bold rounded-xl shadow-sm">
+                <PenSquare className="w-4 h-4 mr-2" /> Score opnieuw ingeven
+              </Button>
+            )}
+            {waitingForRescore && (
               <span className="bg-red-100 text-red-600 text-[10px] uppercase px-3 py-1.5 rounded-full font-bold flex items-center gap-1.5">
-                <AlertCircle className="h-4 w-4" /> Betwist
+                <AlertCircle className="h-4 w-4" /> Betwist – wacht op nieuwe score
               </span>
             )}
           </div>
@@ -301,7 +318,10 @@ export default function MatchesClient({ upcoming, past, userId, pouleName, hasCo
     return false
   })
 
-  const pastMatches = allMatches.filter(m => m.status === 'confirmed' || m.status === 'disputed')
+  // Disputed matches aren't "past" — they still need a corrected score and a
+  // fresh confirmation, so they surface under the "Score bevestigen" tab
+  // (via confirmMatches) instead, alongside pending scores.
+  const pastMatches = allMatches.filter(m => m.status === 'confirmed')
 
   const currentMatches = activeTab === 'upcoming' ? upcomingMatches : activeTab === 'confirm' ? confirmMatches : pastMatches
 

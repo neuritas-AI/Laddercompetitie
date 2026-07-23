@@ -36,7 +36,7 @@ export default function ConfirmMatchForm({ matchId, opponentName, scoreLine }: P
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || 'Fout bij bevestigen')
-      setSuccess(action === 'approved' ? 'Score goedgekeurd!' : 'Score betwist. De wedstrijd wordt opnieuw beoordeeld.' )
+      setSuccess(action === 'approved' ? 'Score goedgekeurd!' : 'Score betwist. Geef de juiste score in via het tabblad "Score bevestigen".')
       // Broadcast optimistic update so lists can remove this match immediately
       try {
         const bc = new BroadcastChannel('matches')

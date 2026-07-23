@@ -19,7 +19,8 @@ export default async function MatchesPage() {
     player2_id,
     player1:profiles!matches_player1_id_fkey(first_name, last_name, avatar_url, phone, share_phone),
     player2:profiles!matches_player2_id_fkey(first_name, last_name, avatar_url, phone, share_phone),
-    poule:poules(name)
+    poule:poules(name),
+    period:competition_periods(period_number)
   `
 
   const [

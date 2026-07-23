@@ -1,3 +1,5 @@
+import { Suspense } from 'react'
+import { Loader2 } from 'lucide-react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import Logo from '@/components/logo'
 import ResetPasswordClient from './reset-password-client'
@@ -13,7 +15,13 @@ export default function ResetPasswordPage() {
         <CardDescription className="text-base">Kies een nieuw wachtwoord voor je account.</CardDescription>
       </CardHeader>
       <CardContent>
-        <ResetPasswordClient />
+        <Suspense fallback={
+          <div className="flex justify-center py-8">
+            <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+          </div>
+        }>
+          <ResetPasswordClient />
+        </Suspense>
       </CardContent>
     </Card>
   )

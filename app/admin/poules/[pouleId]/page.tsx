@@ -21,7 +21,7 @@ export default async function AdminPouleDetailPage({
         level,
         competition_id,
         is_active,
-        competitions(name, type),
+        competitions(name, type, competition_periods(period_number, start_date, end_date, status)),
         poule_players(
           position,
           matches_played,
@@ -59,6 +59,8 @@ export default async function AdminPouleDetailPage({
   }
 
   const competitionName = (poule.competitions as any)?.name ?? 'Geen competitie'
+  const periods = ((poule.competitions as any)?.competition_periods ?? []) as any[]
+  const activePeriod = periods.length > 1 ? periods.find((p) => p.status === 'active') ?? null : null
 
   const playerRows = ((poule.poule_players ?? []) as any[]).map((pp) => ({
     key: `pp-${pp.player_id}`,
@@ -101,7 +103,14 @@ export default async function AdminPouleDetailPage({
           </div>
           <div>
             <h1 className="text-3xl font-bold tracking-tight text-foreground">{poule.name}</h1>
-            <p className="text-muted-foreground">{competitionName} · Niveau {poule.level}</p>
+            <p className="text-muted-foreground">
+              {competitionName} · Niveau {poule.level}
+              {activePeriod && (
+                <span className="ml-2 text-xs font-bold uppercase tracking-wider bg-primary/10 text-primary px-2 py-0.5 rounded-full">
+                  Periode {activePeriod.period_number}: {new Date(activePeriod.start_date).toLocaleDateString('nl-BE')} – {new Date(activePeriod.end_date).toLocaleDateString('nl-BE')}
+                </span>
+              )}
+            </p>
           </div>
         </div>
         <PouleActions poule={poule} competitions={competitions ?? []} poules={allPoules ?? []} />

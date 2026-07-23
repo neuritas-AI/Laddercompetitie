@@ -1,6 +1,6 @@
 import { createClientWithUser } from '@/utils/supabase/server'
 import { sendNotification } from '@/app/actions/notifications'
-import { parseBrusselsLocalDateTime } from '@/lib/brussels'
+import { parseBrusselsLocalDateTime, formatDateInBrussels } from '@/lib/brussels'
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 
@@ -12,7 +12,7 @@ export async function POST(request: NextRequest) {
 
   const { data: match } = await supabase
     .from('matches')
-    .select('id, player1_id, player2_id')
+    .select('id, player1_id, player2_id, period_id')
     .eq('id', matchId)
     .single()
 
@@ -22,6 +22,28 @@ export async function POST(request: NextRequest) {
   }
 
   const scheduledDate = parseBrusselsLocalDateTime(date, time)
+
+  if (match.period_id) {
+    const { data: period } = await supabase
+      .from('competition_periods')
+      .select('period_number, start_date, end_date')
+      .eq('id', match.period_id)
+      .single()
+
+    if (period) {
+      const periodStart = parseBrusselsLocalDateTime(period.start_date, '00:00')
+      const periodEnd = new Date(parseBrusselsLocalDateTime(period.end_date, '23:59').getTime() + 59_999)
+
+      if (scheduledDate < periodStart || scheduledDate > periodEnd) {
+        const startLabel = formatDateInBrussels(periodStart, { day: 'numeric', month: 'long', year: 'numeric' })
+        const endLabel = formatDateInBrussels(periodEnd, { day: 'numeric', month: 'long', year: 'numeric' })
+        return NextResponse.json(
+          { error: `Deze wedstrijd hoort bij periode ${period.period_number} en moet gepland worden tussen ${startLabel} en ${endLabel}.` },
+          { status: 400 }
+        )
+      }
+    }
+  }
 
   const { error } = await supabase
     .from('matches')
