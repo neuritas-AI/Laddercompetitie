@@ -57,10 +57,11 @@ export default function MatchesClient({ upcoming, past, userId, pouleName, hasCo
   const [scoreIsPlayer1, setScoreIsPlayer1] = useState<boolean | null>(null)
   const [showSchedule, setShowSchedule] = useState(false)
   const [scheduleMatchId, setScheduleMatchId] = useState<string | null>(null)
-  const [scheduleData, setScheduleData] = useState({ date: '', time: '', location: '' })
+  const [scheduleData, setScheduleData] = useState({ date: '', time: '' })
   const [scheduling, setScheduling] = useState(false)
   const [scheduledIds, setScheduledIds] = useState<Set<string>>(new Set())
   const [scheduleError, setScheduleError] = useState('')
+  const [scheduleSuccessId, setScheduleSuccessId] = useState<string | null>(null)
 
   const getOpponent = (match: Match) => {
     const isPlayer1 = match.player1_id === userId
@@ -89,7 +90,7 @@ export default function MatchesClient({ upcoming, past, userId, pouleName, hasCo
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || 'Fout bij plannen')
       setScheduledIds(prev => new Set([...prev, scheduleMatchId!]))
-      setShowSchedule(false)
+      setScheduleSuccessId(scheduleMatchId)
     } catch (err: any) {
       setScheduleError(err.message)
     } finally {
@@ -232,7 +233,7 @@ export default function MatchesClient({ upcoming, past, userId, pouleName, hasCo
 
           <div className="flex items-center gap-3 mt-2 sm:mt-0">
             {!isPast && !isDisputed && !isScheduled && (
-              <Button onClick={() => { setScheduleMatchId(match.id); setShowSchedule(true) }} className="bg-primary hover:bg-primary/90 text-white font-bold rounded-xl shadow-sm">
+              <Button onClick={() => { setScheduleMatchId(match.id); setShowSchedule(true); setScheduleSuccessId(null) }} className="bg-primary hover:bg-primary/90 text-white font-bold rounded-xl shadow-sm">
                 Plan datum
               </Button>
             )}
@@ -273,7 +274,7 @@ export default function MatchesClient({ upcoming, past, userId, pouleName, hasCo
         </div>
 
         {/* Schedule form inline */}
-        {showSchedule && scheduleMatchId === match.id && (
+        {showSchedule && scheduleMatchId === match.id && scheduleSuccessId !== match.id && (
           <form onSubmit={handleSchedule} className="mt-6 border border-border/50 rounded-[1.5rem] p-6 bg-muted/10 shadow-inner">
             <div className="flex justify-between items-center mb-4">
               <h3 className="font-bold text-lg text-foreground">Datum voorstellen</h3>
@@ -289,17 +290,42 @@ export default function MatchesClient({ upcoming, past, userId, pouleName, hasCo
                 <Input id="time" type="time" required value={scheduleData.time} onChange={e => setScheduleData(d => ({ ...d, time: e.target.value }))} className="h-12 rounded-xl bg-white" />
               </div>
             </div>
-            <div className="space-y-2 mt-4">
-              <Label htmlFor="location" className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Locatie (optioneel)</Label>
-              <Input id="location" placeholder="bv. Terrein 2" value={scheduleData.location} onChange={(e) => setScheduleData(d => ({ ...d, location: e.target.value }))} className="h-12 rounded-xl bg-white" />
-            </div>
             {scheduleError && <p className="text-red-600 text-sm font-semibold flex items-center gap-1.5 mt-4"><AlertCircle className="h-4 w-4" />{scheduleError}</p>}
             <div className="flex gap-3 pt-6">
               <Button type="submit" disabled={scheduling} className="h-12 px-8 rounded-xl font-bold bg-primary hover:bg-primary/90">
-                {scheduling ? 'Opslaan...' : 'Bevestigen'}
+                {scheduling ? 'Opslaan...' : 'Plannen'}
               </Button>
             </div>
           </form>
+        )}
+
+        {/* Confirmation + court-reservation reminder shown right after scheduling */}
+        {scheduleSuccessId === match.id && (
+          <div className="mt-6 border border-primary/30 rounded-[1.5rem] p-6 bg-primary/5 shadow-inner">
+            <div className="flex justify-between items-start mb-2">
+              <div className="flex items-center gap-2 text-foreground font-bold">
+                <CheckCircle2 className="w-5 h-5 text-primary" /> Wedstrijd gepland!
+              </div>
+              <button
+                type="button"
+                onClick={() => { setScheduleSuccessId(null); setShowSchedule(false) }}
+                className="text-muted-foreground hover:text-foreground"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <p className="text-sm text-muted-foreground">
+              Vergeet je veld niet te reserveren! Reserveer je terrein via{' '}
+              <a
+                href="https://www.tennisenpadelvlaanderen.be/nl/clubdashboard/reserveer-een-terrein?clubId=2285"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="font-bold text-primary underline hover:no-underline"
+              >
+                Tennis en Padel Vlaanderen
+              </a>.
+            </p>
+          </div>
         )}
       </div>
     )

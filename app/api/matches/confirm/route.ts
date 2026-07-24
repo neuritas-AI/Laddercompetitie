@@ -1,6 +1,7 @@
 import { createClientWithUser } from '@/utils/supabase/server'
 import { createClient as createSupabaseClient } from '@supabase/supabase-js'
 import { sendNotification } from '@/app/actions/notifications'
+import { finalizeMatchScore } from '@/lib/match-finalization'
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 
@@ -106,89 +107,20 @@ export async function POST(request: NextRequest) {
 
   if (action === 'approved') {
     if (hasOtherConfirmation) {
-      const [{ error: scoreUpdateError }, { error: matchUpdateError }] = await Promise.all([
-        supabase.from('match_scores').update({ status: 'confirmed' }).eq('id', scoreId),
-        supabase.from('matches').update({ status: 'confirmed' }).eq('id', match.id),
-      ])
-
-      if (scoreUpdateError) return NextResponse.json({ error: scoreUpdateError.message }, { status: 500 })
-      if (matchUpdateError) return NextResponse.json({ error: matchUpdateError.message }, { status: 500 })
-
-      const loserId = match.player1_id === score.winner_id ? match.player2_id : match.player1_id
-
       // poule_players can only be written by admins under RLS (see migration 00001), so this
       // trusted server-side stats/ranking transition must go through the service-role client,
       // just like the `match` lookup above — otherwise these updates silently affect 0 rows
       // whenever a player (not an admin) is the one confirming the score.
-
-      // Fetch current stats for both participants so we can increment them ourselves.
-      // (Supabase's JS client has no `.raw()` escape hatch for atomic `column + 1` updates.)
-      const { data: participants, error: participantsError } = await adminDb
-        .from('poule_players')
-        .select('id, player_id, matches_played, matches_won, matches_lost')
-        .eq('poule_id', match.poule_id)
-        .in('player_id', [score.winner_id, loserId])
-
-      if (participantsError) return NextResponse.json({ error: participantsError.message }, { status: 500 })
-
-      const winnerRow = participants?.find((p) => p.player_id === score.winner_id)
-      const loserRow = participants?.find((p) => p.player_id === loserId)
-
-      const statUpdates = []
-      if (winnerRow) {
-        statUpdates.push(
-          adminDb
-            .from('poule_players')
-            .update({
-              matches_played: winnerRow.matches_played + 1,
-              matches_won: winnerRow.matches_won + 1,
-            })
-            .eq('id', winnerRow.id)
-        )
-      }
-      if (loserRow) {
-        statUpdates.push(
-          adminDb
-            .from('poule_players')
-            .update({
-              matches_played: loserRow.matches_played + 1,
-              matches_lost: loserRow.matches_lost + 1,
-            })
-            .eq('id', loserRow.id)
-        )
-      }
-
-      for (const result of await Promise.all(statUpdates)) {
-        if (result.error) return NextResponse.json({ error: result.error.message }, { status: 500 })
-      }
-
-      const { data: standings, error: standingsError } = await adminDb
-        .from('poule_players')
-        .select('id, player_id, matches_won, matches_lost, created_at')
-        .eq('poule_id', match.poule_id)
-
-      if (standingsError) return NextResponse.json({ error: standingsError.message }, { status: 500 })
-
-      if (standings) {
-        // Ranking points: a win is worth 2 points, a loss is worth 0. Since every player
-        // in a poule has played the same fixture list, points are directly proportional
-        // to matches_won (points = matches_won * 2), so sorting on points and on
-        // matches_won produce the same order. Fewer losses breaks ties on equal points.
-        const ordered = [...standings].sort((a: any, b: any) => {
-          const pointsA = a.matches_won * 2
-          const pointsB = b.matches_won * 2
-          if (pointsB !== pointsA) return pointsB - pointsA
-          if (a.matches_lost !== b.matches_lost) return a.matches_lost - b.matches_lost
-          return new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
-        })
-
-        const positionResults = await Promise.all(
-          ordered.map((player, index) =>
-            adminDb.from('poule_players').update({ position: index + 1 }).eq('id', player.id)
-          )
-        )
-        const positionError = positionResults.find((r) => r.error)?.error
-        if (positionError) return NextResponse.json({ error: positionError.message }, { status: 500 })
+      const finalizeResult = await finalizeMatchScore(adminDb, {
+        scoreId,
+        matchId: match.id,
+        pouleId: match.poule_id,
+        player1Id: match.player1_id,
+        player2Id: match.player2_id,
+        winnerId: score.winner_id,
+      })
+      if (!finalizeResult.success) {
+        return NextResponse.json({ error: finalizeResult.error ?? 'Onbekende fout' }, { status: 500 })
       }
 
       await sendNotification(
