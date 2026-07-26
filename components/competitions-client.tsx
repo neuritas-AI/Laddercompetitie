@@ -13,7 +13,7 @@ import {
   DialogDescription,
 } from '@/components/ui/dialog'
 import { Trophy, Calendar, Loader2, CreditCard, CheckCircle2, AlertCircle } from 'lucide-react'
-import { enrollInCompetition, completeTestPayment } from '@/app/actions/competitions'
+import { enrollInCompetition, completeTestPayment, completeTeamTestPayment } from '@/app/actions/competitions'
 import { REGISTRATION_STATUS_LABELS } from '@/lib/competitions'
 import DoubleEnrollDialog from './double-enroll-dialog'
 
@@ -102,7 +102,9 @@ export default function CompetitionsClient({
     setPaymentMsg(null)
 
     startTransition(async () => {
-      const result = await completeTestPayment(selectedCompetition.id)
+      const result = selectedCompetition.type.startsWith('double')
+        ? await completeTeamTestPayment(selectedCompetition.id)
+        : await completeTestPayment(selectedCompetition.id)
       if (result.success) {
         setRegisteredIds(prev => new Set([...Array.from(prev), selectedCompetition.id]))
         setPaymentMsg({ type: 'success', text: 'Inschrijving voltooid! Je bent ingeschreven voor deze competitie.' })
@@ -158,11 +160,16 @@ export default function CompetitionsClient({
               </div>
               <div>
                 <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-bold mb-0.5">Status</p>
-                <Badge className="bg-primary/10 text-primary border-0 text-xs font-bold">{statusLabel}</Badge>
+                <div className="flex items-center gap-1.5 flex-wrap">
+                  <Badge className="bg-primary/10 text-primary border-0 text-xs font-bold">{statusLabel}</Badge>
+                  {competition.registrationStatus === 'registered' && (
+                    <Badge className="bg-amber-100 text-amber-800 border-0 text-xs font-bold">Betaling openstaand</Badge>
+                  )}
+                </div>
               </div>
             </div>
 
-            {showEnrollButton && (() => {
+            {showEnrollButton ? (() => {
               const isRegistered = registeredIds.has(competition.id)
               if (isRegistered) {
                 return (
@@ -187,7 +194,15 @@ export default function CompetitionsClient({
                   Schrijf mij in
                 </Button>
               )
-            })()}
+            })() : competition.registrationStatus === 'registered' && (
+              <Button
+                onClick={() => { setSelectedCompetition(competition); setPaymentMsg(null); setPaymentOpen(true) }}
+                disabled={isPending}
+                className="font-bold rounded-xl h-11 px-6 shrink-0 bg-amber-500 hover:bg-amber-600 text-white"
+              >
+                <CreditCard className="w-4 h-4 mr-2" /> Betaal nu
+              </Button>
+            )}
           </div>
         </CardContent>
       </Card>

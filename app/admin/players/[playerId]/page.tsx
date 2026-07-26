@@ -4,6 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { requireAdminClient } from '@/utils/supabase/admin'
 import { REGISTRATION_STATUS_LABELS } from '@/lib/competitions'
 import { getDisplayName, getInitials } from '@/lib/profile'
+import EnrollPlayerDialog from '@/components/admin/enroll-player-dialog'
 
 export default async function AdminPlayerDetailPage({
   params,
@@ -45,7 +46,7 @@ export default async function AdminPlayerDetailPage({
     )
   }
 
-  const [{ data: registrations }, { data: teamMemberships }] = await Promise.all([
+  const [{ data: registrations }, { data: teamMemberships }, { data: openCompetitions }, { data: activePlayers }] = await Promise.all([
     supabase
       .from('competition_registrations')
       .select('status, registered_at, amount, competitions(id, name, type, season_year)')
@@ -55,6 +56,17 @@ export default async function AdminPlayerDetailPage({
       .from('team_members')
       .select('team_id, teams(id, name)')
       .eq('player_id', playerId),
+    supabase
+      .from('competitions')
+      .select('id, name, type, season_year')
+      .eq('status', 'open')
+      .order('season_year', { ascending: false }),
+    supabase
+      .from('profiles')
+      .select('id, first_name, last_name, email')
+      .eq('role', 'player')
+      .eq('is_active', true)
+      .order('first_name'),
   ])
 
   const teamIds = (teamMemberships ?? []).map((t: any) => t.team_id)
@@ -115,9 +127,17 @@ export default async function AdminPlayerDetailPage({
 
   return (
     <div className="max-w-3xl mx-auto space-y-6 p-6 lg:p-8">
-      <Link href="/admin/players" className="inline-flex items-center gap-2 text-sm font-semibold text-muted-foreground hover:text-foreground">
-        <ArrowLeft className="w-4 h-4" /> Terug naar spelers
-      </Link>
+      <div className="flex items-center justify-between gap-4">
+        <Link href="/admin/players" className="inline-flex items-center gap-2 text-sm font-semibold text-muted-foreground hover:text-foreground">
+          <ArrowLeft className="w-4 h-4" /> Terug naar spelers
+        </Link>
+        <EnrollPlayerDialog
+          playerId={player.id}
+          playerName={displayName}
+          competitions={openCompetitions ?? []}
+          players={activePlayers ?? []}
+        />
+      </div>
 
       <Card className="border-0 shadow-sm overflow-hidden">
         <div className="bg-muted/30 border-b border-border/50 p-6 flex items-center gap-5">

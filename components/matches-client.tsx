@@ -1,12 +1,14 @@
 'use client'
 
 import { useState, useTransition, useEffect } from 'react'
+import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { formatDateInBrussels } from '@/lib/brussels'
+import { generateMatchIcs, downloadIcsFile } from '@/lib/ics'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Calendar, MapPin, Clock, CheckCircle2, AlertCircle, PenSquare, ArrowLeft, MoreVertical, X } from 'lucide-react'
+import { Calendar, CalendarPlus, MapPin, Clock, CheckCircle2, AlertCircle, PenSquare, ArrowLeft, MoreVertical, X } from 'lucide-react'
 import ScoreForm from '@/components/score-form'
 
 type Tab = 'upcoming' | 'confirm' | 'past'
@@ -47,6 +49,7 @@ interface Props {
 }
 
 export default function MatchesClient({ upcoming, past, userId, pouleName, hasCompetition }: Props) {
+  const router = useRouter()
   const [activeTab, setActiveTab] = useState<Tab>('upcoming')
   const [confirmMatches, setConfirmMatches] = useState<Match[]>([])
   const [loadingConfirm, setLoadingConfirm] = useState(false)
@@ -59,7 +62,10 @@ export default function MatchesClient({ upcoming, past, userId, pouleName, hasCo
   const [scheduleMatchId, setScheduleMatchId] = useState<string | null>(null)
   const [scheduleData, setScheduleData] = useState({ date: '', time: '' })
   const [scheduling, setScheduling] = useState(false)
-  const [scheduledIds, setScheduledIds] = useState<Set<string>>(new Set())
+  // Optimistic override: the freshly-saved scheduled_date per match, keyed by
+  // match id. Used so the UI shows the correct date/time/status immediately
+  // after scheduling, without waiting for a manual page refresh.
+  const [scheduledOverrides, setScheduledOverrides] = useState<Map<string, string>>(new Map())
   const [scheduleError, setScheduleError] = useState('')
   const [scheduleSuccessId, setScheduleSuccessId] = useState<string | null>(null)
 
@@ -89,13 +95,22 @@ export default function MatchesClient({ upcoming, past, userId, pouleName, hasCo
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || 'Fout bij plannen')
-      setScheduledIds(prev => new Set([...prev, scheduleMatchId!]))
+      setScheduledOverrides(prev => new Map(prev).set(scheduleMatchId!, data.scheduledDate))
       setScheduleSuccessId(scheduleMatchId)
+      // Reconcile with the server in the background so the rest of the page's
+      // data (e.g. dashboard summaries elsewhere) stays consistent too — the
+      // optimistic override above already made this row correct immediately.
+      router.refresh()
     } catch (err: any) {
       setScheduleError(err.message)
     } finally {
       setScheduling(false)
     }
+  }
+
+  const handleAddToCalendar = (match: Match, effectiveScheduledDate: string, opponentName: string) => {
+    const ics = generateMatchIcs({ matchId: match.id, scheduledDate: effectiveScheduledDate, opponentName })
+    downloadIcsFile(`tpa-ladder-wedstrijd-${match.id}.ics`, ics)
   }
 
   // Fetch confirmable matches when the confirm tab is opened
@@ -154,7 +169,8 @@ export default function MatchesClient({ upcoming, past, userId, pouleName, hasCo
     const myScore = isPlayer1 ? match.score_player1 : match.score_player2
     const oppScore = isPlayer1 ? match.score_player2 : match.score_player1
     const won = match.winner_id === userId
-    const isScheduled = match.scheduled_date != null || scheduledIds.has(match.id)
+    const effectiveScheduledDate = scheduledOverrides.get(match.id) ?? match.scheduled_date
+    const isScheduled = effectiveScheduledDate != null
     const isPendingConfirmation = match.status === 'played'
     const isConfirmed = match.status === 'confirmed'
     const isDisputed = match.status === 'disputed'
@@ -202,11 +218,20 @@ export default function MatchesClient({ upcoming, past, userId, pouleName, hasCo
           </Link>
 
           {!isPast && !isDisputed && (
-            <div className="flex gap-2">
+            <div className="flex flex-wrap items-center gap-2">
               {isScheduled ? (
-                <div className="flex items-center gap-2 text-xs font-bold text-blue-600 bg-blue-100 px-3 py-1.5 rounded-full">
-                  <Calendar className="w-4 h-4" /> {formatDate(match.scheduled_date)}
-                </div>
+                <>
+                  <div className="flex items-center gap-2 text-xs font-bold text-blue-600 bg-blue-100 px-3 py-1.5 rounded-full">
+                    <Calendar className="w-4 h-4" /> {formatDate(effectiveScheduledDate)}
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => handleAddToCalendar(match, effectiveScheduledDate!, oppName)}
+                    className="flex items-center gap-1.5 text-xs font-bold text-primary bg-primary/10 px-3 py-1.5 rounded-full hover:bg-primary/20 transition-colors"
+                  >
+                    <CalendarPlus className="w-4 h-4" /> Toevoegen aan agenda
+                  </button>
+                </>
               ) : (
                 <div className="flex items-center gap-2 text-xs font-bold text-yellow-600 bg-yellow-100 px-3 py-1.5 rounded-full">
                   <AlertCircle className="w-4 h-4" /> Te plannen
@@ -325,6 +350,15 @@ export default function MatchesClient({ upcoming, past, userId, pouleName, hasCo
                 Tennis en Padel Vlaanderen
               </a>.
             </p>
+            {effectiveScheduledDate && (
+              <button
+                type="button"
+                onClick={() => handleAddToCalendar(match, effectiveScheduledDate!, oppName)}
+                className="mt-4 flex items-center gap-1.5 text-xs font-bold text-primary bg-primary/10 px-3 py-1.5 rounded-full hover:bg-primary/20 transition-colors w-fit"
+              >
+                <CalendarPlus className="w-4 h-4" /> Toevoegen aan agenda
+              </button>
+            )}
           </div>
         )}
       </div>

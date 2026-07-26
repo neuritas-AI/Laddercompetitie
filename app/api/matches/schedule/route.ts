@@ -67,5 +67,5 @@ export async function POST(request: NextRequest) {
     matchId
   )
 
-  return NextResponse.json({ success: true })
+  return NextResponse.json({ success: true, scheduledDate: scheduledDate.toISOString() })
 }

@@ -1077,6 +1077,151 @@ export async function updateMatchStatus(matchId: string, status: string): Promis
   }
 }
 
+// ─── ENROLLMENT ──────────────────────────────────────────────────────────────
+
+// Registers a player for a competition on the admin's behalf. Mirrors the
+// player's own self-service enrollment (enrollInCompetition /
+// enroll-double route) in every way except payment: the registration is
+// created with status 'registered' and no payment fields are ever touched
+// here, so the admin is never recorded as the paying party. The player still
+// has to complete the (existing) test-payment flow themselves afterwards —
+// see completeTestPayment / completeTeamTestPayment in app/actions/competitions.ts.
+export async function adminEnrollPlayer(formData: FormData): Promise<ActionResponse> {
+  try {
+    const { supabase } = await ensureAdmin()
+
+    const playerId = formData.get('player_id') as string
+    const competitionId = formData.get('competition_id') as string
+    const partnerId = (formData.get('partner_id') as string) || null
+    const teamName = (formData.get('team_name') as string) || null
+
+    if (!playerId || !competitionId) {
+      return { success: false, error: 'Kies een speler en een competitie.' }
+    }
+
+    const { data: competition, error: compError } = await supabase
+      .from('competitions')
+      .select('id, name, type, price, max_participants')
+      .eq('id', competitionId)
+      .single()
+
+    if (compError || !competition) {
+      return { success: false, error: 'Competitie niet gevonden.' }
+    }
+
+    const isDouble = competition.type.startsWith('double')
+
+    if (isDouble) {
+      if (!partnerId) {
+        return { success: false, error: 'Kies een dubbelpartner.' }
+      }
+      if (partnerId === playerId) {
+        return { success: false, error: 'Kies twee verschillende spelers.' }
+      }
+
+      const { data: existingMemberships } = await supabase
+        .from('team_members')
+        .select('team_id')
+        .in('player_id', [playerId, partnerId])
+
+      if (existingMemberships && existingMemberships.length > 0) {
+        const teamIds = existingMemberships.map((m) => m.team_id)
+        const { data: existingTeamRegs } = await supabase
+          .from('competition_team_registrations')
+          .select('id')
+          .eq('competition_id', competitionId)
+          .in('team_id', teamIds)
+          .neq('status', 'cancelled')
+
+        if (existingTeamRegs && existingTeamRegs.length > 0) {
+          return { success: false, error: 'Een van beide spelers zit al in een team dat voor deze competitie ingeschreven is.' }
+        }
+      }
+
+      if (competition.max_participants) {
+        const { count } = await supabase
+          .from('competition_team_registrations')
+          .select('*', { count: 'exact', head: true })
+          .eq('competition_id', competitionId)
+          .neq('status', 'cancelled')
+
+        if (count !== null && count * 2 >= competition.max_participants) {
+          return { success: false, error: 'Deze competitie is vol.' }
+        }
+      }
+
+      const [{ data: player }, { data: partner }] = await Promise.all([
+        supabase.from('profiles').select('first_name, last_name').eq('id', playerId).maybeSingle(),
+        supabase.from('profiles').select('first_name, last_name').eq('id', partnerId).maybeSingle(),
+      ])
+
+      const formatName = (p: { first_name: string | null; last_name: string | null } | null, fallback: string) =>
+        [p?.first_name, p?.last_name].filter(Boolean).join(' ').trim() || fallback
+      const defaultName = teamName || `${formatName(player, 'Speler 1')} & ${formatName(partner, 'Speler 2')}`
+
+      const { data: newTeam, error: teamError } = await supabase
+        .from('teams')
+        .insert({ competition_id: competitionId, name: defaultName })
+        .select('id')
+        .single()
+
+      if (teamError || !newTeam) return { success: false, error: teamError?.message || 'Kon team niet aanmaken.' }
+
+      const { error: membersError } = await supabase.from('team_members').insert([
+        { team_id: newTeam.id, player_id: playerId },
+        { team_id: newTeam.id, player_id: partnerId },
+      ])
+      if (membersError) return { success: false, error: membersError.message }
+
+      const { error: regError } = await supabase.from('competition_team_registrations').insert({
+        competition_id: competitionId,
+        team_id: newTeam.id,
+        status: 'registered',
+        amount: competition.price ?? 0,
+      })
+      if (regError) return { success: false, error: regError.message }
+    } else {
+      const { data: existing } = await supabase
+        .from('competition_registrations')
+        .select('id')
+        .eq('competition_id', competitionId)
+        .eq('player_id', playerId)
+        .maybeSingle()
+
+      if (existing) {
+        return { success: false, error: 'Deze speler is al ingeschreven voor deze competitie.' }
+      }
+
+      if (competition.max_participants) {
+        const { count } = await supabase
+          .from('competition_registrations')
+          .select('*', { count: 'exact', head: true })
+          .eq('competition_id', competitionId)
+          .neq('status', 'cancelled')
+
+        if (count !== null && count >= competition.max_participants) {
+          return { success: false, error: 'Deze competitie is vol.' }
+        }
+      }
+
+      const { error: regError } = await supabase.from('competition_registrations').insert({
+        competition_id: competitionId,
+        player_id: playerId,
+        status: 'registered',
+        amount: competition.price ?? 0,
+      })
+      if (regError) return { success: false, error: regError.message }
+    }
+
+    revalidatePath(`/admin/players/${playerId}`)
+    revalidatePath('/admin/players')
+    return { success: true }
+  } catch (error: any) {
+    console.error('adminEnrollPlayer error:', error)
+    return { success: false, error: error?.message || 'Onbekende fout' }
+  }
+}
+
 // ─── TEAMS ───────────────────────────────────────────────────────────────────
 
 export async function createTeam(formData: FormData): Promise<ActionResponse> {
