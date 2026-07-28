@@ -1,5 +1,6 @@
 'use client'
 
+import { useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { CalendarDays, User, LogOut, Home, ListOrdered, ChevronDown, Trophy } from 'lucide-react'
@@ -31,6 +32,27 @@ export default function PlayerLayoutClient({
   notifications = [],
 }: PlayerLayoutClientProps) {
   const pathname = usePathname()
+
+  // Hide the mobile top bar while scrolling down (more room for content),
+  // bring it back on scroll-up or once the user is back at the top.
+  const [hideMobileHeader, setHideMobileHeader] = useState(false)
+  const lastScrollY = useRef(0)
+
+  useEffect(() => {
+    const handleScroll = () => {
+      const currentY = window.scrollY
+      if (currentY <= 0) {
+        setHideMobileHeader(false)
+      } else if (currentY > lastScrollY.current) {
+        setHideMobileHeader(true)
+      } else {
+        setHideMobileHeader(false)
+      }
+      lastScrollY.current = currentY
+    }
+    window.addEventListener('scroll', handleScroll, { passive: true })
+    return () => window.removeEventListener('scroll', handleScroll)
+  }, [])
 
   return (
     <div className="flex min-h-screen bg-background">
@@ -111,7 +133,12 @@ export default function PlayerLayoutClient({
       </div>
 
       {/* Mobile Header */}
-      <div className="lg:hidden fixed top-0 w-full bg-mockup-sidebar z-40 px-4 py-3 flex items-center justify-between shadow-md">
+      <div
+        className={cn(
+          'lg:hidden fixed top-0 w-full bg-mockup-sidebar z-40 px-4 py-3 flex items-center justify-between shadow-md transition-transform duration-300',
+          hideMobileHeader ? '-translate-y-full' : 'translate-y-0'
+        )}
+      >
         <form action="/api/auth/sign-out" method="post">
           <button
             type="submit"

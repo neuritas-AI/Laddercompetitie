@@ -6,7 +6,7 @@ import {
   Trophy, BarChart3, Users, LogOut, Menu, X,
   Shield, GitCommitHorizontal, CalendarClock, ListOrdered
 } from 'lucide-react'
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { cn } from '@/lib/utils'
 import Logo from '@/components/logo'
 
@@ -32,6 +32,32 @@ export default function AdminLayoutClient({ children, adminName, adminEmail }: P
 
   const isActive = (href: string) =>
     href === '/admin' ? pathname === '/admin' : pathname.startsWith(href)
+
+  // Hide the mobile top bar while scrolling down (more room for content),
+  // bring it back on scroll-up or once the user is back at the top. The main
+  // content area scrolls internally (overflow-y-auto), not the window, so we
+  // listen on that element rather than window.
+  const mainRef = useRef<HTMLElement>(null)
+  const [hideMobileHeader, setHideMobileHeader] = useState(false)
+  const lastScrollTop = useRef(0)
+
+  useEffect(() => {
+    const el = mainRef.current
+    if (!el) return
+    const handleScroll = () => {
+      const currentY = el.scrollTop
+      if (mobileMenuOpen || currentY <= 0) {
+        setHideMobileHeader(false)
+      } else if (currentY > lastScrollTop.current) {
+        setHideMobileHeader(true)
+      } else {
+        setHideMobileHeader(false)
+      }
+      lastScrollTop.current = currentY
+    }
+    el.addEventListener('scroll', handleScroll, { passive: true })
+    return () => el.removeEventListener('scroll', handleScroll)
+  }, [mobileMenuOpen])
 
   return (
     <div className="flex min-h-screen bg-gray-100 dark:bg-background">
@@ -85,7 +111,12 @@ export default function AdminLayoutClient({ children, adminName, adminEmail }: P
 
       {/* Main */}
       <div className="flex-1 flex flex-col min-w-0 md:pl-64">
-        <header className="md:hidden flex items-center justify-between bg-gray-950 text-white h-16 px-4 shrink-0 relative z-50">
+        <header
+          className={cn(
+            'md:hidden flex items-center justify-between bg-gray-950 text-white h-16 px-4 fixed top-0 left-0 right-0 z-50 transition-transform duration-300',
+            hideMobileHeader ? '-translate-y-full' : 'translate-y-0'
+          )}
+        >
           <div className="flex items-center gap-3">
             <Logo size="sm" inverted />
             <span className="bg-red-600 text-[10px] uppercase font-bold tracking-widest px-2 py-0.5 rounded-full">Admin</span>
@@ -115,7 +146,7 @@ export default function AdminLayoutClient({ children, adminName, adminEmail }: P
           </div>
         )}
 
-        <main className="flex-1 overflow-y-auto bg-gray-50 dark:bg-background min-h-screen">
+        <main ref={mainRef} className="flex-1 overflow-y-auto bg-gray-50 dark:bg-background min-h-screen pt-16 md:pt-0">
           {children}
         </main>
       </div>
