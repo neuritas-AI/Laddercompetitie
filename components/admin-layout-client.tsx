@@ -111,7 +111,7 @@ export default function AdminLayoutClient({ children, adminName, adminEmail }: P
                 <LogOut className="h-4 w-4" />Uitloggen
               </button>
             </form>
-            <p className="text-center text-[10px] text-white/50 font-medium pt-2">Powered by Neuritas-AI</p>
+            <p className="text-center text-[11px] text-white/50 font-medium pt-2">Powered by Neuritas-AI</p>
           </div>
         )}
 

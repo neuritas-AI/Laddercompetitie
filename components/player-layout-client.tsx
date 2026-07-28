@@ -154,7 +154,7 @@ export default function PlayerLayoutClient({
             )
           })}
         </div>
-        <p className="text-center text-[9px] text-muted-foreground/60 font-medium pb-1">
+        <p className="text-center text-[11px] text-muted-foreground/60 font-medium pb-1">
           <a href="https://www.neuritas-ai.com/" target="_blank" rel="noopener noreferrer" className="hover:underline">
             Powered by Neuritas-AI
           </a>
