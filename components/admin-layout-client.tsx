@@ -75,7 +75,11 @@ export default function AdminLayoutClient({ children, adminName, adminEmail }: P
               Uitloggen
             </button>
           </form>
-          <p className="text-center text-[10px] text-white/50 font-medium pt-1">Powered by Neuritas-AI</p>
+          <p className="text-center text-[10px] text-white/50 font-medium pt-1">
+            <a href="https://www.neuritas-ai.com/" target="_blank" rel="noopener noreferrer" className="hover:underline">
+              Powered by Neuritas-AI
+            </a>
+          </p>
         </div>
       </aside>
 

@@ -90,7 +90,11 @@ export default function PlayerLayoutClient({
               </button>
             </form>
           </div>
-          <p className="text-center text-[10px] text-white/50 font-medium pt-3">Powered by Neuritas-AI</p>
+          <p className="text-center text-[10px] text-white/50 font-medium pt-3">
+            <a href="https://www.neuritas-ai.com/" target="_blank" rel="noopener noreferrer" className="hover:underline">
+              Powered by Neuritas-AI
+            </a>
+          </p>
         </div>
       </aside>
 
@@ -150,7 +154,11 @@ export default function PlayerLayoutClient({
             )
           })}
         </div>
-        <p className="text-center text-[9px] text-muted-foreground/60 font-medium pb-1">Powered by Neuritas-AI</p>
+        <p className="text-center text-[9px] text-muted-foreground/60 font-medium pb-1">
+          <a href="https://www.neuritas-ai.com/" target="_blank" rel="noopener noreferrer" className="hover:underline">
+            Powered by Neuritas-AI
+          </a>
+        </p>
       </div>
     </div>
   )
