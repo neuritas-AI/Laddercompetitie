@@ -1042,8 +1042,16 @@ export async function deletePlayer(playerId: string): Promise<ActionResponse> {
     const adminDb = getAdminClient()
 
     // Remove references that are not cascade-safe before deleting the auth user.
+    // match_confirmations must go first: its confirmed_by -> profiles FK has no
+    // cascade, and it also references match_scores (deleted next).
+    const { error: confirmationsError } = await supabase
+      .from('match_confirmations')
+      .delete()
+      .eq('confirmed_by', playerId)
+    if (confirmationsError) throw confirmationsError
+
     const cleanupSteps = [
-      supabase.from('match_scores').delete().or(`submitted_by.eq.${playerId},confirmed_by.eq.${playerId},winner_id.eq.${playerId}`),
+      supabase.from('match_scores').delete().or(`submitted_by.eq.${playerId},winner_id.eq.${playerId}`),
       supabase.from('matches').delete().or(`player1_id.eq.${playerId},player2_id.eq.${playerId},winner_id.eq.${playerId}`),
     ]
 

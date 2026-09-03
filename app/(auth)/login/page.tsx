@@ -22,24 +22,25 @@ export default async function LoginPage({
   const successMsg = params.success
 
   return (
-    <Card className="w-full max-w-md shadow-2xl border border-white/20 bg-white/20 backdrop-blur-xl text-white">
-      <CardHeader className="text-center space-y-3 pb-6">
+    <Card className="w-full max-w-md shadow-2xl border-0 py-0 overflow-hidden">
+      <div className="border-t-4 border-primary" />
+      <CardHeader className="text-center space-y-3 pt-8 pb-6">
         <div className="flex justify-center">
-          <Logo size="md" inverted />
+          <Logo size="md" />
         </div>
-        <CardTitle className="text-3xl font-extrabold text-white">Welkom terug</CardTitle>
-        <CardDescription className="text-base text-white/70">Meld je aan bij je TPA Ladder account</CardDescription>
+        <CardTitle className="text-3xl font-extrabold">Welkom terug</CardTitle>
+        <CardDescription className="text-base">Meld je aan bij je TPA Ladder account</CardDescription>
       </CardHeader>
-      <CardContent>
+      <CardContent className="pb-8">
         {successMsg && (
-          <div className="flex items-start gap-2 rounded-lg bg-green-500/15 border border-green-400/30 p-4 text-sm text-green-200 mb-5">
+          <div className="flex items-start gap-2 rounded-lg bg-green-50 border border-green-200 p-4 text-sm text-green-700 mb-5">
             <CheckCircle className="w-4 h-4 mt-0.5 shrink-0" />
             <span>{decodeURIComponent(successMsg)}</span>
           </div>
         )}
 
         {errorMsg && (
-          <div className="flex items-start gap-2 rounded-lg bg-red-500/15 border border-red-400/30 p-4 text-sm text-red-200 mb-5">
+          <div className="flex items-start gap-2 rounded-lg bg-red-50 border border-red-200 p-4 text-sm text-red-700 mb-5">
             <AlertCircle className="w-4 h-4 mt-0.5 shrink-0" />
             <span>{decodeURIComponent(errorMsg)}</span>
           </div>
@@ -47,7 +48,7 @@ export default async function LoginPage({
 
         <form action="/api/auth/login" method="POST" className="space-y-5">
           <div className="space-y-2">
-            <Label htmlFor="email" className="text-white/90">E-mailadres</Label>
+            <Label htmlFor="email">E-mailadres</Label>
             <Input
               id="email"
               name="email"
@@ -55,12 +56,12 @@ export default async function LoginPage({
               autoComplete="email"
               required
               placeholder="E-mailadres"
-              className="h-11 bg-white/15 border-white/25 text-white placeholder:text-white/50 focus-visible:border-white/50"
+              className="h-11"
             />
           </div>
           <div className="space-y-2">
             <div className="flex items-center justify-between">
-              <Label htmlFor="password" className="text-white/90">Wachtwoord</Label>
+              <Label htmlFor="password">Wachtwoord</Label>
               <Link href="/forgot-password" className="text-sm font-semibold text-primary hover:underline">
                 Wachtwoord vergeten?
               </Link>
@@ -71,7 +72,7 @@ export default async function LoginPage({
               type="password"
               autoComplete="current-password"
               required
-              className="h-11 bg-white/15 border-white/25 text-white placeholder:text-white/50 focus-visible:border-white/50"
+              className="h-11"
             />
           </div>
           <Button type="submit" className="w-full h-12 text-base font-semibold">
@@ -79,7 +80,7 @@ export default async function LoginPage({
           </Button>
         </form>
 
-        <p className="mt-6 text-center text-sm text-white/70">
+        <p className="mt-6 text-center text-sm text-muted-foreground">
           Nog geen account?{' '}
           <Link href="/register" className="font-semibold text-primary hover:underline">
             Registreer hier

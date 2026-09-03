@@ -24,9 +24,10 @@ interface Profile {
 interface Props {
   profile: Profile
   showNotifications?: boolean
+  showSharePhone?: boolean
 }
 
-export default function ProfileClient({ profile: initialProfile, showNotifications = true }: Props) {
+export default function ProfileClient({ profile: initialProfile, showNotifications = true, showSharePhone = true }: Props) {
   const [profile, setProfile] = useState(initialProfile)
   const [avatarUrl, setAvatarUrl] = useState(initialProfile.avatar_url ?? '')
   const [uploading, setUploading] = useState(false)
@@ -224,12 +225,14 @@ export default function ProfileClient({ profile: initialProfile, showNotificatio
                   <Label htmlFor="phone">Telefoon</Label>
                   <Input id="phone" name="phone" type="tel" defaultValue={profile.phone ?? ''} key={`ph-${profile.phone}`} className="h-10" />
                 </div>
-                <div className="sm:col-span-2 mt-2">
-                  <label className="flex items-center space-x-3 cursor-pointer">
-                    <input type="checkbox" name="share_phone" defaultChecked={profile.share_phone ?? false} className="h-4 w-4 rounded border-gray-300 text-primary" />
-                    <span className="text-sm font-medium">Mijn telefoonnummer delen met tegenstanders</span>
-                  </label>
-                </div>
+                {showSharePhone && (
+                  <div className="sm:col-span-2 mt-2">
+                    <label className="flex items-center space-x-3 cursor-pointer">
+                      <input type="checkbox" name="share_phone" defaultChecked={profile.share_phone ?? false} className="h-4 w-4 rounded border-gray-300 text-primary" />
+                      <span className="text-sm font-medium">Mijn telefoonnummer delen met tegenstanders</span>
+                    </label>
+                  </div>
+                )}
               </div>
               {saveMsg && (
                 <p className={`text-sm font-semibold flex items-center gap-1.5 ${saveMsg.type === 'success' ? 'text-green-600' : 'text-red-600'}`}>

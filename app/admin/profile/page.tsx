@@ -18,6 +18,7 @@ export default async function AdminProfilePage() {
       </div>
       <ProfileClient
         showNotifications={false}
+        showSharePhone={false}
         profile={{
           first_name: profile?.first_name ?? metadata.first_name ?? null,
           last_name: profile?.last_name ?? metadata.last_name ?? null,
