@@ -23,9 +23,10 @@ interface Profile {
 
 interface Props {
   profile: Profile
+  showNotifications?: boolean
 }
 
-export default function ProfileClient({ profile: initialProfile }: Props) {
+export default function ProfileClient({ profile: initialProfile, showNotifications = true }: Props) {
   const [profile, setProfile] = useState(initialProfile)
   const [avatarUrl, setAvatarUrl] = useState(initialProfile.avatar_url ?? '')
   const [uploading, setUploading] = useState(false)
@@ -279,37 +280,39 @@ export default function ProfileClient({ profile: initialProfile }: Props) {
           </CardContent>
         </Card>
 
-        <Card className="md:col-span-3">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Bell className="w-5 h-5" />
-              Meldingen
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <form action={handleNotificationSave} className="space-y-4">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                {allowedNotifications.map((item) => (
-                  <label key={item.value} className="flex items-center space-x-3 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      name="notifications"
-                      value={item.value}
-                      defaultChecked={userNotifications.includes(item.value) || userNotifications.length === 0}
-                      className="h-4 w-4 rounded border-gray-300 text-primary"
-                    />
-                    <span className="text-sm font-medium">{item.label}</span>
-                  </label>
-                ))}
-              </div>
-              <div className="flex justify-end pt-2">
-                <Button type="submit" disabled={isPending} className="font-bold">
-                  {isPending ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Opslaan...</> : 'Meldingen Opslaan'}
-                </Button>
-              </div>
-            </form>
-          </CardContent>
-        </Card>
+        {showNotifications && (
+          <Card className="md:col-span-3">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Bell className="w-5 h-5" />
+                Meldingen
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <form action={handleNotificationSave} className="space-y-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  {allowedNotifications.map((item) => (
+                    <label key={item.value} className="flex items-center space-x-3 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        name="notifications"
+                        value={item.value}
+                        defaultChecked={userNotifications.includes(item.value) || userNotifications.length === 0}
+                        className="h-4 w-4 rounded border-gray-300 text-primary"
+                      />
+                      <span className="text-sm font-medium">{item.label}</span>
+                    </label>
+                  ))}
+                </div>
+                <div className="flex justify-end pt-2">
+                  <Button type="submit" disabled={isPending} className="font-bold">
+                    {isPending ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Opslaan...</> : 'Meldingen Opslaan'}
+                  </Button>
+                </div>
+              </form>
+            </CardContent>
+          </Card>
+        )}
       </div>
     </div>
   )

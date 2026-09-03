@@ -2,7 +2,13 @@
   "version": "0.0.1",
   "configurations": [
     {
-      "name": "dev",
+      "name": "tpa-site",
+      "runtimeExecutable": "node",
+      "runtimeArgs": ["C:\\Users\\Gebruiker\\Desktop\\Ladder\\.claude\\static-server.js"],
+      "port": 8123
+    },
+    {
+      "name": "ladder-dev",
       "runtimeExecutable": "npm",
       "runtimeArgs": ["run", "dev"],
       "port": 3000

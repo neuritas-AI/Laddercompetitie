@@ -1,0 +1,20 @@
+<svg viewBox="0 0 100 60" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <pattern id="strings" width="5" height="5" patternUnits="userSpaceOnUse">
+      <rect width="5" height="5" fill="#D80016"/>
+      <path d="M0 0L5 5M5 0L0 5" stroke="#fff" stroke-width="0.6" opacity="0.5"/>
+    </pattern>
+    <pattern id="holes" width="9" height="9" patternUnits="userSpaceOnUse">
+      <rect width="9" height="9" fill="#D80016"/>
+      <circle cx="4.5" cy="4.5" r="1" fill="#fff" opacity="0.4"/>
+    </pattern>
+    <clipPath id="clipT"><text x="0" y="46" font-family="Arial Black, Arial, sans-serif" font-weight="900" font-size="52">T</text></clipPath>
+    <clipPath id="clipP"><text x="31" y="46" font-family="Arial Black, Arial, sans-serif" font-weight="900" font-size="52">P</text></clipPath>
+    <clipPath id="clipA"><text x="60" y="46" font-family="Arial Black, Arial, sans-serif" font-weight="900" font-size="52">A</text></clipPath>
+  </defs>
+  <rect clip-path="url(#clipT)" x="0" y="0" width="34" height="60" fill="url(#strings)"/>
+  <rect clip-path="url(#clipP)" x="28" y="0" width="34" height="60" fill="url(#holes)"/>
+  <rect clip-path="url(#clipA)" x="58" y="0" width="42" height="60" fill="#D80016"/>
+  <circle cx="88" cy="15" r="9" fill="#FFE600"/>
+  <path d="M81 15a9 9 0 0 0 7 8" stroke="#fff" stroke-width="1.2" fill="none" opacity="0.7"/>
+</svg>
